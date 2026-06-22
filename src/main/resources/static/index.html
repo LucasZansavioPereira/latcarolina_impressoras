@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de Impressoras</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><i class="ti ti-printer"></i></div>
+        <div>
+          <h1>HSBO</h1>
+          <p>Gestão de impressoras</p>
+        </div>
+      </div>
+
+      <nav class="stats">
+        <div class="stat-card">
+          <span class="stat-label">Total</span>
+          <span class="stat-value" id="statTotal">0</span>
+        </div>
+        <div class="stat-card ok">
+          <span class="stat-label">Funcionando</span>
+          <span class="stat-value" id="statOk">0</span>
+        </div>
+        <div class="stat-card broken">
+          <span class="stat-label">Quebradas</span>
+          <span class="stat-value" id="statBroken">0</span>
+        </div>
+        <div class="stat-card maint">
+          <span class="stat-label">Manutenção</span>
+          <span class="stat-value" id="statMaint">0</span>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <p>Backend Java · Spring Boot</p>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="search-wrap">
+          <i class="ti ti-search"></i>
+          <input id="search" type="text" placeholder="Buscar por código, setor ou problema..." />
+        </div>
+        <div class="filters">
+          <button class="chip active" data-status="">Todas</button>
+          <button class="chip" data-status="FUNCIONANDO">Funcionando</button>
+          <button class="chip" data-status="QUEBRADA">Quebradas</button>
+          <button class="chip" data-status="MANUTENCAO">Manutenção</button>
+        </div>
+        <button class="btn-primary" id="btnNew"><i class="ti ti-plus"></i>Nova impressora</button>
+      </header>
+
+      <section id="grid" class="grid"></section>
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <i class="ti ti-printer-off"></i>
+        <p>Nenhuma impressora encontrada</p>
+        <span>Cadastre a primeira impressora para começar o controle</span>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Nova impressora</h2>
+        <button class="icon-btn" id="btnClose"><i class="ti ti-x"></i></button>
+      </div>
+
+      <input type="hidden" id="editId" />
+
+      <div class="form-group">
+        <label>Código / número serial <span class="req">*</span></label>
+        <input id="fCodigo" type="text" placeholder="Ex: ZEQYBQAG2000CED" />
+      </div>
+
+      <div class="form-group">
+        <label>Status <span class="req">*</span> </label>
+        <div class="status-select" id="fStatusGroup">
+          <button type="button" class="status-opt ok" data-value="FUNCIONANDO">Funcionando</button>
+          <button type="button" class="status-opt broken" data-value="QUEBRADA">Quebrada</button>
+          <button type="button" class="status-opt maint" data-value="MANUTENCAO">Manutenção</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Problema / observação <span class="req">*</span></label>
+        <textarea id="fProblema" rows="3" placeholder="Descreva o problema"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Setor Antigo <span class="req">*</span></label>
+          <input id="fSetorAntigo" type="text" />
+        </div>
+
+        <div class="form-group">
+          <label>Setor Novo <span class="req">*</span></label>
+          <input id="fSetorNovo" type="text" />
+        </div>
+        <div class="form-group">
+          <label>Marca / modelo</label>
+          <input id="fMarcaModelo" type="text" placeholder="" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-danger-ghost" id="btnDelete" style="display:none;"><i
+            class="ti ti-trash"></i>Excluir</button>
+        <div class="modal-actions">
+          <button class="btn-ghost" id="btnCancel">Cancelar</button>
+          <button class="btn-primary" id="btnSave"><i class="ti ti-check"></i>Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
