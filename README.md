@@ -7,7 +7,7 @@ Backend em **Java (Spring Boot)** + frontend web com design próprio. Os dados f
 Pré-requisitos: **Java 17+** e **Maven** instalados.
 
 ```bash
-cd printer-app
+cd PrinterGen
 mvn spring-boot:run
 ```
 
