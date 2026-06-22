@@ -11,7 +11,7 @@ cd printer-app
 mvn spring-boot:run
 ```
 
-Depois acesse: **http://localhost:8080**
+Depois acesse: **http://localhost:9090**
 
 A primeira execução cria automaticamente o arquivo do banco de dados na pasta `data/`.
 
