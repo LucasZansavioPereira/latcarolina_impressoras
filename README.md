@@ -17,7 +17,7 @@ A primeira execução cria automaticamente o arquivo do banco de dados na pasta 
 
 ## Como usar
 
-- **Nova impressora**: clique no botão no topo. Só o código é obrigatório — o resto (problema, setor, marca/modelo) é opcional.
+- **Nova impressora**: clique no botão no topo. Todos os itens são obrigatórios, com excessão da Marca.
 - **Editar**: clique em qualquer card para abrir, mudar o status (Funcionando / Quebrada / Manutenção) ou os dados, e salvar.
 - **Excluir**: dentro do card aberto, botão "Excluir".
 - **Buscar/filtrar**: barra de busca e os chips no topo (Todas / Funcionando / Quebradas / Manutenção).
