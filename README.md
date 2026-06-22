@@ -1,4 +1,4 @@
-# PrintControl — Sistema de Registro de Impressoras
+# PrinterGen — Sistema de Registro de Impressoras
 
 Backend em **Java (Spring Boot)** + frontend web com design próprio. Os dados ficam salvos em um banco de dados local (H2, arquivo em disco), então nada se perde ao reiniciar.
 
