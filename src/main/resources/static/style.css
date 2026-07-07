@@ -144,6 +144,22 @@ body{
 .btn-primary:hover{background:#372eab;}
 .btn-primary i{font-size:16px;}
 
+.btn-secondary{
+  display:flex;align-items:center;gap:6px;
+  background:var(--ok-bg);
+  color:var(--ok);
+  border:1px solid var(--ok-bg);
+  padding:10px 16px;
+  border-radius:var(--radius-md);
+  font-size:14px;
+  font-weight:500;
+  font-family:inherit;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.btn-secondary:hover{background:#d5f0e2;}
+.btn-secondary i{font-size:16px;}
+
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));

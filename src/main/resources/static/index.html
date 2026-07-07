@@ -10,6 +10,7 @@
   <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
 <body>
@@ -60,6 +61,9 @@
           <button class="chip" data-status="QUEBRADA">Quebradas</button>
           <button class="chip" data-status="MANUTENCAO">Manutenção</button>
         </div>
+        <button class="btn-secondary" id="btnExport"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
+        <button class="btn-secondary" id="btnImport"><i class="ti ti-file-upload"></i>Importar Excel</button>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none" />
         <button class="btn-primary" id="btnNew"><i class="ti ti-plus"></i>Nova impressora</button>
       </header>
 

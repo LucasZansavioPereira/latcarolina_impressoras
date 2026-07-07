@@ -108,6 +108,242 @@ document.querySelectorAll('.chip').forEach(chip => {
   });
 });
 
+function formatDateBr(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('pt-BR');
+  } catch (e) {
+    return iso;
+  }
+}
+
+function printerToRow(p) {
+  return {
+    'Código': p.codigo || '',
+    'Status': statusLabel[p.status] || p.status || '',
+    'Problema / Observação': p.problema || '',
+    'Setor Antigo': p.setorAntigo || '',
+    'Setor Novo': p.setorNovo || '',
+    'Marca / Modelo': p.marcaModelo || '',
+    'Atualizado em': formatDateBr(p.updatedAt)
+  };
+}
+
+function autoSizeColumns(rows) {
+  if (!rows.length) return [];
+  const headers = Object.keys(rows[0]);
+  return headers.map(h => {
+    const maxLen = rows.reduce((max, row) => Math.max(max, String(row[h] ?? '').length), h.length);
+    return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+  });
+}
+
+function addSheet(wb, sheetName, list) {
+  const rows = list.map(printerToRow);
+  const ws = rows.length
+    ? XLSX.utils.json_to_sheet(rows)
+    : XLSX.utils.aoa_to_sheet([['Código', 'Status', 'Problema / Observação', 'Setor Antigo', 'Setor Novo', 'Marca / Modelo', 'Atualizado em']]);
+  ws['!cols'] = autoSizeColumns(rows.length ? rows : [{ 'Código': '', 'Status': '', 'Problema / Observação': '', 'Setor Antigo': '', 'Setor Novo': '', 'Marca / Modelo': '', 'Atualizado em': '' }]);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+}
+
+function exportToExcel() {
+  if (!printers.length) {
+    showToast('Não há impressoras para exportar');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  addSheet(wb, 'Todas', printers);
+  addSheet(wb, 'Funcionando', printers.filter(p => p.status === 'FUNCIONANDO'));
+  addSheet(wb, 'Manutenção', printers.filter(p => p.status === 'MANUTENCAO'));
+  addSheet(wb, 'Quebradas', printers.filter(p => p.status === 'QUEBRADA'));
+
+  const date = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `impressoras_${date}.xlsx`);
+  showToast('Planilha exportada com sucesso');
+}
+
+document.getElementById('btnExport').addEventListener('click', exportToExcel);
+
+// ---------- Importar Excel ----------
+
+function normalizeText(s) {
+  return String(s ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .toLowerCase()
+    .replace(/[_\-\/]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const HEADER_ALIASES = {
+  codigo: ['codigo', 'código', 'codigo serial', 'numero de serie', 'número de série', 'serial', 'code', 'cod', 'numero serial', 'número serial', 'num serial', 'n serial', 'nº serial', 'serie', 'série', 'serial number', 'numero de serie completo'],
+  status: ['status', 'situacao', 'situação', 'estado'],
+  problema: ['problema', 'problema observacao', 'observacao', 'observação', 'obs', 'descricao', 'descrição', 'defeito'],
+  setorAntigo: ['setor antigo', 'setor origem', 'local antigo', 'setor anterior', 'origem'],
+  setorNovo: ['setor novo', 'setor atual', 'setor', 'local', 'localizacao', 'localização', 'destino'],
+  marcaModelo: ['marca modelo', 'marca', 'modelo', 'fabricante']
+};
+
+const STATUS_ALIASES = {
+  FUNCIONANDO: ['funcionando', 'ok', 'ativa', 'ativo', 'normal', 'funciona', 'operante', 'operacional'],
+  QUEBRADA: ['quebrada', 'quebrado', 'defeito', 'com defeito', 'danificada', 'danificado', 'parada', 'parado', 'quebradas'],
+  MANUTENCAO: ['manutencao', 'manutenção', 'em manutencao', 'em manutenção', 'revisao', 'revisão']
+};
+
+function normalizeStatus(value) {
+  const v = normalizeText(value);
+  if (!v) return 'FUNCIONANDO';
+  for (const [status, aliases] of Object.entries(STATUS_ALIASES)) {
+    if (aliases.some(a => v === a || v.includes(a))) return status;
+  }
+  return 'FUNCIONANDO';
+}
+
+function buildHeaderMap(row) {
+  // row: primeiro objeto de dados da planilha (chaves = cabeçalhos originais)
+  const map = {}; // field -> [colunas originais correspondentes]
+  const unmatched = [];
+
+  Object.keys(row).forEach(originalHeader => {
+    const norm = normalizeText(originalHeader);
+    if (!norm) return; // cabeçalho vazio/em branco: não há como reconhecer o campo
+    let matched = false;
+    for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
+      if (aliases.includes(norm)) {
+        if (!map[field]) map[field] = [];
+        map[field].push(originalHeader);
+        matched = true;
+      }
+    }
+    if (!matched) unmatched.push({ originalHeader, norm });
+  });
+
+  // Fallback: para cabeçalhos que não bateram exatamente com nenhum alias,
+  // tenta correspondência parcial (ex.: "Nº de Série Completo" contém "serie").
+  unmatched.forEach(({ originalHeader, norm }) => {
+    for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
+      // Exige pelo menos 4 caracteres no termo comparado para evitar falsos positivos
+      // (ex.: "obs" não deve casar com "Centro Obstétrico").
+      const isPartialMatch = aliases.some(a =>
+        (a.length >= 4 && norm.includes(a)) || (norm.length >= 4 && a.includes(norm))
+      );
+      if (isPartialMatch) {
+        if (!map[field]) map[field] = [];
+        map[field].push(originalHeader);
+        break; // usa o primeiro campo compatível para evitar ambiguidade
+      }
+    }
+  });
+
+  return map;
+}
+
+function rowToPrinter(row, headerMap) {
+  const getValue = (field) => {
+    const cols = headerMap[field];
+    if (!cols || !cols.length) return '';
+    return cols
+      .map(c => (row[c] !== undefined && row[c] !== null) ? String(row[c]).trim() : '')
+      .filter(Boolean)
+      .join(' ');
+  };
+
+  const codigo = getValue('codigo');
+  if (!codigo) return null;
+
+  return {
+    codigo,
+    status: normalizeStatus(getValue('status')),
+    problema: getValue('problema'),
+    setorAntigo: getValue('setorAntigo'),
+    setorNovo: getValue('setorNovo'),
+    marcaModelo: getValue('marcaModelo')
+  };
+}
+
+function extractPrintersFromWorkbook(workbook) {
+  const byCodigo = new Map();
+
+  workbook.SheetNames.forEach(sheetName => {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    if (!rows.length) return;
+
+    const headerMap = buildHeaderMap(rows[0]);
+    if (!headerMap.codigo) return; // planilha sem coluna de código reconhecível
+
+    rows.forEach(row => {
+      const printer = rowToPrinter(row, headerMap);
+      if (printer) byCodigo.set(printer.codigo, printer);
+    });
+  });
+
+  return Array.from(byCodigo.values());
+}
+
+async function importPrinters(list) {
+  const existingCodigos = new Set(printers.map(p => (p.codigo || '').trim()));
+  const toCreate = list.filter(p => !existingCodigos.has(p.codigo));
+  const skipped = list.length - toCreate.length;
+
+  let success = 0;
+  let failed = 0;
+
+  for (const printer of toCreate) {
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(printer)
+      });
+      if (res.ok) success++; else failed++;
+    } catch (e) {
+      failed++;
+    }
+  }
+
+  await loadPrinters();
+
+  const parts = [`${success} adicionada(s)`];
+  if (skipped > 0) parts.push(`${skipped} já existente(s) ignorada(s)`);
+  if (failed > 0) parts.push(`${failed} com erro`);
+  showToast(`Importação concluída: ${parts.join(', ')}`);
+}
+
+document.getElementById('btnImport').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+
+document.getElementById('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const list = extractPrintersFromWorkbook(workbook);
+
+    if (!list.length) {
+      showToast('Nenhuma impressora reconhecida no arquivo. Verifique as colunas.');
+      return;
+    }
+
+    if (!confirm(`Foram encontradas ${list.length} impressora(s) no arquivo. Deseja importar?`)) {
+      return;
+    }
+
+    showToast('Importando...');
+    await importPrinters(list);
+  } catch (err) {
+    showToast('Erro ao ler o arquivo. Verifique se é um Excel válido.');
+  } finally {
+    e.target.value = '';
+  }
+});
+
 document.getElementById('btnNew').addEventListener('click', () => openModal(null));
 document.getElementById('btnClose').addEventListener('click', closeModal);
 document.getElementById('btnCancel').addEventListener('click', closeModal);
