@@ -1,4 +1,4 @@
-# PrintControl — Sistema de Registro de Impressoras
+# PrinterGen — Sistema de Registro de Impressoras
 
 Backend em **Java (Spring Boot)** + frontend web com design próprio. Os dados ficam salvos em um banco de dados local (H2, arquivo em disco), então nada se perde ao reiniciar.
 
@@ -7,17 +7,17 @@ Backend em **Java (Spring Boot)** + frontend web com design próprio. Os dados f
 Pré-requisitos: **Java 17+** e **Maven** instalados.
 
 ```bash
-cd printer-app
+cd PrinterGen
 mvn spring-boot:run
 ```
 
-Depois acesse: **http://localhost:8080**
+Depois acesse: **http://localhost:9090**
 
 A primeira execução cria automaticamente o arquivo do banco de dados na pasta `data/`.
 
 ## Como usar
 
-- **Nova impressora**: clique no botão no topo. Só o código é obrigatório — o resto (problema, setor, marca/modelo) é opcional.
+- **Nova impressora**: clique no botão no topo. Todos os itens são obrigatórios, com excessão da Marca.
 - **Editar**: clique em qualquer card para abrir, mudar o status (Funcionando / Quebrada / Manutenção) ou os dados, e salvar.
 - **Excluir**: dentro do card aberto, botão "Excluir".
 - **Buscar/filtrar**: barra de busca e os chips no topo (Todas / Funcionando / Quebradas / Manutenção).
