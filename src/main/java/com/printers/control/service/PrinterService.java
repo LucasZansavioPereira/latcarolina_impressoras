@@ -41,6 +41,7 @@ public class PrinterService {
         existing.setSetorAntigo(changes.getSetorAntigo());
         existing.setSetorNovo(changes.getSetorNovo());
         existing.setMarcaModelo(changes.getMarcaModelo());
+        existing.setIp(changes.getIp());
         return repository.save(existing);
     }
 

@@ -1,4 +1,4 @@
-l<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
@@ -20,7 +20,7 @@ l<!DOCTYPE html>
       <div class="brand">
         <div class="brand-icon"><i class="ti ti-printer"></i></div>
         <div>
-          <h1>Exemplo</h1>
+          <h1>HSBO</h1>
           <p>Gestão de impressoras</p>
         </div>
       </div>
@@ -44,27 +44,43 @@ l<!DOCTYPE html>
         </div>
       </nav>
 
+      <nav class="side-nav">
+        <button class="side-nav-item active" id="navPrinters" data-view="main">
+          <i class="ti ti-printer"></i>Impressoras
+        </button>
+        <button class="side-nav-item" id="navReport" data-view="report">
+          <i class="ti ti-report-analytics"></i>Relatório dos IPs
+        </button>
+      </nav>
+
       <div class="sidebar-footer">
         <p>Backend Java · Spring Boot</p>
       </div>
     </aside>
 
     <main class="content">
+      <section id="mainView" class="view">
       <header class="topbar">
-        <div class="search-wrap">
-          <i class="ti ti-search"></i>
-          <input id="search" type="text" placeholder="Buscar por código, setor ou problema..." />
+        <div class="topbar-top">
+          <div class="search-wrap">
+            <i class="ti ti-search"></i>
+            <input id="search" type="text" placeholder="Buscar por código, setor ou problema..." />
+          </div>
+          <div class="filters">
+            <button class="chip active" data-status="">Todas</button>
+            <button class="chip" data-status="FUNCIONANDO">Funcionando</button>
+            <button class="chip" data-status="QUEBRADA">Quebradas</button>
+            <button class="chip" data-status="MANUTENCAO">Manutenção</button>
+            <button class="chip chip-offline" data-status="IP_OFFLINE"><i class="ti ti-wifi-off"></i>IP Offline</button>
+          </div>
         </div>
-        <div class="filters">
-          <button class="chip active" data-status="">Todas</button>
-          <button class="chip" data-status="FUNCIONANDO">Funcionando</button>
-          <button class="chip" data-status="QUEBRADA">Quebradas</button>
-          <button class="chip" data-status="MANUTENCAO">Manutenção</button>
+        <div class="topbar-actions">
+          <button class="btn-secondary" id="btnCheckAll"><i class="ti ti-refresh"></i>Verificar todos os IPs</button>
+          <button class="btn-secondary" id="btnExport"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
+          <button class="btn-secondary" id="btnImport"><i class="ti ti-file-upload"></i>Importar Excel</button>
+          <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none" />
+          <button class="btn-primary" id="btnNew"><i class="ti ti-plus"></i>Nova impressora</button>
         </div>
-        <button class="btn-secondary" id="btnExport"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
-        <button class="btn-secondary" id="btnImport"><i class="ti ti-file-upload"></i>Importar Excel</button>
-        <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none" />
-        <button class="btn-primary" id="btnNew"><i class="ti ti-plus"></i>Nova impressora</button>
       </header>
 
       <section id="grid" class="grid"></section>
@@ -73,6 +89,62 @@ l<!DOCTYPE html>
         <p>Nenhuma impressora encontrada</p>
         <span>Cadastre a primeira impressora para começar o controle</span>
       </div>
+      </section>
+
+      <section id="reportView" class="view" style="display:none;">
+        <header class="report-header">
+          <div>
+            <h2>Relatório dos IPs</h2>
+            <p class="report-subtitle">Status operacional e de conectividade de todas as impressoras com IP cadastrado</p>
+          </div>
+          <button class="btn-secondary" id="btnCheckAllReport"><i class="ti ti-refresh"></i>Verificar todos os IPs</button>
+        </header>
+
+        <div class="report-summary">
+          <div class="report-stat">
+            <span class="report-stat-value" id="repTotal">0</span>
+            <span class="report-stat-label">Com IP cadastrado</span>
+          </div>
+          <div class="report-stat online">
+            <span class="report-stat-value" id="repOnline">0</span>
+            <span class="report-stat-label">🟢 IP Online</span>
+          </div>
+          <div class="report-stat offline">
+            <span class="report-stat-value" id="repOffline">0</span>
+            <span class="report-stat-label">🔴 IP Indisponível</span>
+          </div>
+          <div class="report-stat pending">
+            <span class="report-stat-value" id="repPending">0</span>
+            <span class="report-stat-label">⚪ Não verificado</span>
+          </div>
+        </div>
+
+        <div class="search-wrap report-search">
+          <i class="ti ti-search"></i>
+          <input id="reportSearch" type="text" placeholder="Buscar por código, setor ou IP..." />
+        </div>
+
+        <div class="report-table-wrap">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Setor</th>
+                <th>Status</th>
+                <th>Endereço IP</th>
+                <th>Conectividade</th>
+                <th>Última verificação</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody"></tbody>
+          </table>
+          <div id="reportEmptyState" class="empty-state" style="display:none;">
+            <i class="ti ti-router-off"></i>
+            <p>Nenhuma impressora com IP encontrada</p>
+            <span>Cadastre um endereço IP nas impressoras para acompanhar aqui</span>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -100,8 +172,9 @@ l<!DOCTYPE html>
       </div>
 
       <div class="form-group">
-        <label>Problema / observação <span class="req">*</span></label>
+        <label>Problema / observação <span class="req" id="fProblemaReq" style="display:none;">*</span></label>
         <textarea id="fProblema" rows="3" placeholder="Descreva o problema"></textarea>
+        <span class="field-hint" id="fProblemaHint">Obrigatório apenas para impressoras marcadas como Quebrada</span>
       </div>
 
       <div class="form-row">
@@ -117,6 +190,20 @@ l<!DOCTYPE html>
         <div class="form-group">
           <label>Marca / modelo</label>
           <input id="fMarcaModelo" type="text" placeholder="" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Endereço IP</label>
+        <input id="fIp" type="text" placeholder="Ex: 192.168.0.10" />
+      </div>
+
+      <div class="form-group conn-info" id="connInfo" style="display:none;">
+        <label>Conectividade de rede</label>
+        <div class="conn-info-row">
+          <span id="connBadge" class="conn-badge">—</span>
+          <span id="connChecked" class="conn-checked"></span>
+          <button type="button" class="btn-ghost btn-check-now" id="btnCheckNow"><i class="ti ti-refresh"></i>Verificar agora</button>
         </div>
       </div>
 

@@ -5,11 +5,23 @@ let selectedStatus = 'FUNCIONANDO';
 
 const statusLabel = { FUNCIONANDO: 'Funcionando', QUEBRADA: 'Quebrada', MANUTENCAO: 'Manutenção' };
 
+const connectivityLabel = {
+  ONLINE: { text: '🟢 IP Online', cssClass: 'conn-online' },
+  INDISPONIVEL: { text: '🔴 IP Indisponível', cssClass: 'conn-indisponivel' },
+  NAO_VERIFICADO: { text: '⚪ Não verificado', cssClass: 'conn-nao-verificado' }
+};
+
+function getConnectivityInfo(p) {
+  if (!p.ip) return null; // sem IP cadastrado, não exibe status de conectividade
+  return connectivityLabel[p.connectivityStatus] || connectivityLabel.NAO_VERIFICADO;
+}
+
 async function loadPrinters() {
   try {
     const res = await fetch(API);
     printers = await res.json();
     render();
+    renderReport();
   } catch (e) {
     showToast('Erro ao conectar com o servidor');
   }
@@ -23,7 +35,8 @@ function render() {
       (p.codigo || '').toLowerCase().includes(search) ||
       ((p.setorAntigo || '') + ' ' + (p.setorNovo || '')).toLowerCase().includes(search) ||
       (p.problema || '').toLowerCase().includes(search);
-    const matchesStatus = !currentStatus || p.status === currentStatus;
+    const matchesStatus = !currentStatus
+      || (currentStatus === 'IP_OFFLINE' ? p.connectivityStatus === 'INDISPONIVEL' : p.status === currentStatus);
     return matchesSearch && matchesStatus;
   });
 
@@ -38,11 +51,13 @@ function render() {
   filtered.forEach(p => {
     const card = document.createElement('div');
     card.className = `card ${p.status}`;
+    const conn = getConnectivityInfo(p);
     card.innerHTML = `
       <div class="card-top">
         <span class="card-codigo">${escapeHtml(p.codigo)}</span>
         <span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span>
       </div>
+      ${conn ? `<p class="card-connectivity ${conn.cssClass}">${conn.text}</p>` : ''}
       <p class="card-problema">${escapeHtml(p.problema) || 'Sem observações'}</p>
       <div class="card-meta">
         ${(p.setorAntigo || p.setorNovo) ? `<span><i class="ti ti-map-pin"></i>${escapeHtml(p.setorAntigo || '-')} → ${escapeHtml(p.setorNovo || '-')}</span>` : ''}
@@ -68,11 +83,33 @@ function openModal(p) {
   document.getElementById('fSetorAntigo').value = p ? (p.setorAntigo || '') : '';
   document.getElementById('fSetorNovo').value = p ? (p.setorNovo || '') : '';
   document.getElementById('fMarcaModelo').value = p ? (p.marcaModelo || '') : '';
+  document.getElementById('fIp').value = p ? (p.ip || '') : '';
   selectedStatus = p ? p.status : 'FUNCIONANDO';
   updateStatusButtons();
+  renderConnectivityInfo(p);
   document.getElementById('btnDelete').style.display = p ? 'flex' : 'none';
   document.getElementById('modalOverlay').classList.add('open');
   document.getElementById('fCodigo').focus();
+}
+
+function renderConnectivityInfo(p) {
+  const wrap = document.getElementById('connInfo');
+  const badge = document.getElementById('connBadge');
+  const checked = document.getElementById('connChecked');
+
+  // Só exibe o bloco de conectividade ao editar uma impressora que já possua IP cadastrado
+  if (!p || !p.ip) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  const conn = connectivityLabel[p.connectivityStatus] || connectivityLabel.NAO_VERIFICADO;
+  badge.textContent = conn.text;
+  badge.className = `conn-badge ${conn.cssClass}`;
+  checked.textContent = p.lastConnectivityCheck
+    ? `Última verificação: ${formatDateBr(p.lastConnectivityCheck)}`
+    : 'Ainda não verificado';
 }
 
 function closeModal() {
@@ -83,6 +120,13 @@ function updateStatusButtons() {
   document.querySelectorAll('.status-opt').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.value === selectedStatus);
   });
+  updateProblemaRequirement();
+}
+
+function updateProblemaRequirement() {
+  const isObrigatorio = selectedStatus === 'QUEBRADA';
+  document.getElementById('fProblemaReq').style.display = isObrigatorio ? 'inline' : 'none';
+  document.getElementById('fProblemaHint').style.display = isObrigatorio ? 'none' : 'block';
 }
 
 function showToast(msg) {
@@ -118,6 +162,7 @@ function formatDateBr(iso) {
 }
 
 function printerToRow(p) {
+  const conn = getConnectivityInfo(p);
   return {
     'Código': p.codigo || '',
     'Status': statusLabel[p.status] || p.status || '',
@@ -125,6 +170,8 @@ function printerToRow(p) {
     'Setor Antigo': p.setorAntigo || '',
     'Setor Novo': p.setorNovo || '',
     'Marca / Modelo': p.marcaModelo || '',
+    'Endereço IP': p.ip || '',
+    'Conectividade': conn ? conn.text.replace(/^[^\s]+\s/, '') : '',
     'Atualizado em': formatDateBr(p.updatedAt)
   };
 }
@@ -184,7 +231,8 @@ const HEADER_ALIASES = {
   problema: ['problema', 'problema observacao', 'observacao', 'observação', 'obs', 'descricao', 'descrição', 'defeito'],
   setorAntigo: ['setor antigo', 'setor origem', 'local antigo', 'setor anterior', 'origem'],
   setorNovo: ['setor novo', 'setor atual', 'setor', 'local', 'localizacao', 'localização', 'destino'],
-  marcaModelo: ['marca modelo', 'marca', 'modelo', 'fabricante']
+  marcaModelo: ['marca modelo', 'marca', 'modelo', 'fabricante'],
+  ip: ['ip', 'endereco ip', 'endereço ip', 'ip address']
 };
 
 const STATUS_ALIASES = {
@@ -260,7 +308,8 @@ function rowToPrinter(row, headerMap) {
     problema: getValue('problema'),
     setorAntigo: getValue('setorAntigo'),
     setorNovo: getValue('setorNovo'),
-    marcaModelo: getValue('marcaModelo')
+    marcaModelo: getValue('marcaModelo'),
+    ip: getValue('ip')
   };
 }
 
@@ -364,8 +413,8 @@ document.getElementById('btnSave').addEventListener('click', async () => {
     return;
   }
 
-  if (!problema) {
-    showToast('Informe o problema / observação');
+  if (selectedStatus === 'QUEBRADA' && !problema) {
+    showToast('Informe o problema da impressora quebrada');
     document.getElementById('fProblema').focus();
     return;
   }
@@ -389,7 +438,8 @@ document.getElementById('btnSave').addEventListener('click', async () => {
     problema,
     setorAntigo,
     setorNovo,
-    marcaModelo: document.getElementById('fMarcaModelo').value.trim()
+    marcaModelo: document.getElementById('fMarcaModelo').value.trim(),
+    ip: document.getElementById('fIp').value.trim()
   };
 
   try {
@@ -407,6 +457,61 @@ document.getElementById('btnSave').addEventListener('click', async () => {
   }
 });
 
+async function checkAllIps(btn) {
+  const comIp = printers.filter(p => p.ip && p.ip.trim()).length;
+
+  if (comIp === 0) {
+    showToast('Nenhuma impressora com IP cadastrado para verificar');
+    return;
+  }
+
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<i class="ti ti-loader-2 spin"></i>Verificando ${comIp} impressora(s)...`;
+
+  try {
+    const res = await fetch(`${API}/verificar-conectividade`, { method: 'POST' });
+    if (!res.ok) throw new Error('Falha ao verificar');
+    printers = await res.json();
+    render();
+    renderReport();
+
+    const online = printers.filter(p => p.ip && p.connectivityStatus === 'ONLINE').length;
+    const offline = printers.filter(p => p.ip && p.connectivityStatus === 'INDISPONIVEL').length;
+    showToast(`Verificação concluída: 🟢 ${online} online, 🔴 ${offline} indisponível(is)`);
+  } catch (e) {
+    showToast('Erro ao verificar conectividade das impressoras');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+document.getElementById('btnCheckAll').addEventListener('click', (e) => checkAllIps(e.currentTarget));
+document.getElementById('btnCheckAllReport').addEventListener('click', (e) => checkAllIps(e.currentTarget));
+
+document.getElementById('btnCheckNow').addEventListener('click', async () => {
+  const id = document.getElementById('editId').value;
+  if (!id) return;
+  const btn = document.getElementById('btnCheckNow');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/${id}/verificar-conectividade`, { method: 'POST' });
+    if (!res.ok) throw new Error('Falha ao verificar');
+    const updated = await res.json();
+    renderConnectivityInfo(updated);
+    const idx = printers.findIndex(pr => pr.id === updated.id);
+    if (idx !== -1) printers[idx] = updated;
+    render();
+    renderReport();
+    showToast('Conectividade verificada');
+  } catch (e) {
+    showToast('Erro ao verificar conectividade');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 document.getElementById('btnDelete').addEventListener('click', async () => {
   const id = document.getElementById('editId').value;
   if (!id) return;
@@ -421,5 +526,61 @@ document.getElementById('btnDelete').addEventListener('click', async () => {
     showToast('Erro ao excluir. Tente novamente.');
   }
 });
+
+// ---------- Navegação entre abas (Impressoras / Relatório dos IPs) ----------
+
+function switchView(view) {
+  document.getElementById('mainView').style.display = view === 'main' ? 'block' : 'none';
+  document.getElementById('reportView').style.display = view === 'report' ? 'block' : 'none';
+  document.getElementById('navPrinters').classList.toggle('active', view === 'main');
+  document.getElementById('navReport').classList.toggle('active', view === 'report');
+  if (view === 'report') renderReport();
+}
+
+document.getElementById('navPrinters').addEventListener('click', () => switchView('main'));
+document.getElementById('navReport').addEventListener('click', () => switchView('report'));
+document.getElementById('reportSearch').addEventListener('input', renderReport);
+
+function renderReport() {
+  const tbody = document.getElementById('reportTableBody');
+  const emptyState = document.getElementById('reportEmptyState');
+  if (!tbody) return; // view ainda não carregada
+
+  const search = document.getElementById('reportSearch').value.toLowerCase();
+  const comIp = printers.filter(p => p.ip && p.ip.trim());
+
+  const filtered = comIp.filter(p => {
+    if (!search) return true;
+    return (p.codigo || '').toLowerCase().includes(search)
+      || ((p.setorAntigo || '') + ' ' + (p.setorNovo || '')).toLowerCase().includes(search)
+      || (p.ip || '').toLowerCase().includes(search);
+  });
+
+  document.getElementById('repTotal').textContent = comIp.length;
+  document.getElementById('repOnline').textContent = comIp.filter(p => p.connectivityStatus === 'ONLINE').length;
+  document.getElementById('repOffline').textContent = comIp.filter(p => p.connectivityStatus === 'INDISPONIVEL').length;
+  document.getElementById('repPending').textContent = comIp.filter(p => !p.connectivityStatus || p.connectivityStatus === 'NAO_VERIFICADO').length;
+
+  emptyState.style.display = filtered.length === 0 ? 'block' : 'none';
+  tbody.innerHTML = '';
+
+  filtered
+    .slice()
+    .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
+    .forEach(p => {
+      const conn = connectivityLabel[p.connectivityStatus] || connectivityLabel.NAO_VERIFICADO;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="rt-codigo">${escapeHtml(p.codigo)}</td>
+        <td class="rt-setor">${escapeHtml(p.setorNovo || p.setorAntigo || '-')}</td>
+        <td><span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span></td>
+        <td class="rt-ip">${escapeHtml(p.ip)}</td>
+        <td><span class="rt-conn ${conn.cssClass}">${conn.text}</span></td>
+        <td class="rt-checked">${p.lastConnectivityCheck ? formatDateBr(p.lastConnectivityCheck) : 'Nunca verificado'}</td>
+      `;
+      tr.addEventListener('click', () => openModal(p));
+      tbody.appendChild(tr);
+    });
+}
 
 loadPrinters();

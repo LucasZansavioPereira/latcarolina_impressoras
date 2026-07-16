@@ -1,6 +1,7 @@
 package com.printers.control.controller;
 
 import com.printers.control.model.Printer;
+import com.printers.control.service.PrinterConnectivityService;
 import com.printers.control.service.PrinterService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -16,9 +17,11 @@ import java.util.NoSuchElementException;
 public class PrinterController {
 
     private final PrinterService service;
+    private final PrinterConnectivityService connectivityService;
 
-    public PrinterController(PrinterService service) {
+    public PrinterController(PrinterService service, PrinterConnectivityService connectivityService) {
         this.service = service;
+        this.connectivityService = connectivityService;
     }
 
     @GetMapping
@@ -46,6 +49,26 @@ public class PrinterController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
         service.delete(id);
+    }
+
+    /**
+     * Força a verificação de conectividade (ping/IP) de uma impressora específica,
+     * sem precisar esperar a próxima execução automática do Scheduler.
+     * Não altera o status operacional da impressora.
+     */
+    @PostMapping("/{id}/verificar-conectividade")
+    public Printer verificarConectividade(@PathVariable String id) {
+        return connectivityService.verificarPorId(id);
+    }
+
+    /**
+     * Força a verificação de conectividade (ping/IP) de todas as impressoras
+     * cadastradas de uma só vez, sem precisar esperar o Scheduler ou verificar
+     * uma por uma manualmente. Impressoras sem IP cadastrado são ignoradas.
+     */
+    @PostMapping("/verificar-conectividade")
+    public List<Printer> verificarConectividadeTodas() {
+        return connectivityService.verificarTodasImpressoras();
     }
 
     @ExceptionHandler(NoSuchElementException.class)

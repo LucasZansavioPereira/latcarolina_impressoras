@@ -2,6 +2,7 @@ package com.printers.control.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 import java.time.Instant;
 
@@ -30,6 +31,22 @@ public class Printer {
 
     private String marcaModelo;
 
+    @Pattern(
+            regexp = "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+            message = "Endereço IP inválido"
+    )
+    private String ip;
+
+    /**
+     * Representa apenas o estado da comunicação de rede com o equipamento
+     * (ping/InetAddress). Não deve ser confundido com o status operacional
+     * (FUNCIONANDO, QUEBRADA, MANUTENCAO), que continua controlado manualmente.
+     */
+    @Enumerated(EnumType.STRING)
+    private ConnectivityStatus connectivityStatus = ConnectivityStatus.NAO_VERIFICADO;
+
+    private Instant lastConnectivityCheck;
+
     @Column(updatable = false)
     private Instant createdAt;
 
@@ -37,6 +54,10 @@ public class Printer {
 
     public enum Status {
         FUNCIONANDO, QUEBRADA, MANUTENCAO
+    }
+
+    public enum ConnectivityStatus {
+        ONLINE, INDISPONIVEL, NAO_VERIFICADO
     }
 
     @PrePersist
@@ -71,6 +92,15 @@ public class Printer {
 
     public String getMarcaModelo() { return marcaModelo; }
     public void setMarcaModelo(String marcaModelo) { this.marcaModelo = marcaModelo; }
+
+    public String getIp() { return ip; }
+    public void setIp(String ip) { this.ip = ip; }
+
+    public ConnectivityStatus getConnectivityStatus() { return connectivityStatus; }
+    public void setConnectivityStatus(ConnectivityStatus connectivityStatus) { this.connectivityStatus = connectivityStatus; }
+
+    public Instant getLastConnectivityCheck() { return lastConnectivityCheck; }
+    public void setLastConnectivityCheck(Instant lastConnectivityCheck) { this.lastConnectivityCheck = lastConnectivityCheck; }
 
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
