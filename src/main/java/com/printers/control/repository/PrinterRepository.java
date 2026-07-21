@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface PrinterRepository extends JpaRepository<Printer, String> {
     List<Printer> findAllByOrderByUpdatedAtDesc();
+    List<Printer> findByCodigo(String codigo);
 }

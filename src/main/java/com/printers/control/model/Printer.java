@@ -15,7 +15,7 @@ public class Printer {
     private String id;
 
     @NotBlank(message = "O código da impressora é obrigatório")
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String codigo;
 
     @Enumerated(EnumType.STRING)
@@ -31,11 +31,18 @@ public class Printer {
 
     private String marcaModelo;
 
+    @Enumerated(EnumType.STRING)
+    private ConnectionType connectionType = ConnectionType.ETHERNET;
+
     @Pattern(
             regexp = "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
             message = "Endereço IP inválido"
     )
     private String ip;
+
+    public enum ConnectionType {
+        USB, ETHERNET
+    }
 
     /**
      * Representa apenas o estado da comunicação de rede com o equipamento
@@ -53,11 +60,11 @@ public class Printer {
     private Instant updatedAt;
 
     public enum Status {
-        FUNCIONANDO, QUEBRADA, MANUTENCAO
+        FUNCIONANDO, QUEBRADA, MANUTENCAO, BACKUP
     }
 
     public enum ConnectivityStatus {
-        ONLINE, INDISPONIVEL, NAO_VERIFICADO
+        ONLINE, INDISPONIVEL, NAO_VERIFICADO, MAC_MISMATCH
     }
 
     @PrePersist
@@ -92,6 +99,9 @@ public class Printer {
 
     public String getMarcaModelo() { return marcaModelo; }
     public void setMarcaModelo(String marcaModelo) { this.marcaModelo = marcaModelo; }
+
+    public ConnectionType getConnectionType() { return connectionType; }
+    public void setConnectionType(ConnectionType connectionType) { this.connectionType = connectionType; }
 
     public String getIp() { return ip; }
     public void setIp(String ip) { this.ip = ip; }

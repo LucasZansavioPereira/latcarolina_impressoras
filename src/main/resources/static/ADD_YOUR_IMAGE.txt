@@ -1,0 +1,7 @@
+Place the provided PNG into this directory with the exact filename:
+
+grupo-pereira.png
+
+Path: src/main/resources/static/grupo-pereira.png
+
+After placing the file, restart the Spring Boot app or refresh the browser to see the updated logo. If you're running with `mvn spring-boot:run` the file should be served automatically.

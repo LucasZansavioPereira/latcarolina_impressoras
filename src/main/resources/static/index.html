@@ -9,18 +9,96 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=3" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
 <body>
 
-  <div class="app">
+  <div class="auth-screen login-screen" id="loginScreen">
+    <div class="auth-card">
+      <!-- <div class="auth-brand">
+        <div class="brand-icon emoji-logo">🖨️</div>
+        <div>
+          <h1>Bem-vindo</h1>
+          <p>Faça login para acessar o painel de impressoras</p>
+        </div>
+      </div> -->
+      <div class="form-group">
+        <label>Usuário</label>
+        <input id="loginUsername" type="text" placeholder="Digite seu usuário" />
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input id="loginPassword" type="password" placeholder="Digite sua senha" />
+      </div>
+      <div class="auth-actions">
+        <button class="btn-primary" id="btnLogin"><i class="ti ti-lock"></i>Entrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-screen user-screen" id="userScreen" style="display:none;">
+    <div class="auth-card user-panel-grid" style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1fr) minmax(360px,1.2fr);gap:1.5rem;align-items:start;width:min(100%,1160px);max-width:1160px;">
+      <div class="user-panel user-panel-account">
+        <div class="modal-header">
+          <h2>Conta atual</h2>
+          <button class="btn-ghost btn-exit-account" id="btnBackToLogin"><i class="ti ti-arrow-left"></i>Voltar</button>
+        </div>
+        <div class="user-info" style="margin-bottom:1.5rem;">
+          <p class="user-label">Usuário atual</p>
+          <h3 id="currentUsername" class="user-name">administrador</h3>
+        </div>
+        <div class="form-group">
+          <label>Nome de usuário atual</label>
+          <input id="editUsernameCurrent" type="text" disabled />
+        </div>
+        <div class="form-group">
+          <label>Senha atual</label>
+          <input id="editCurrentPassword" type="password" placeholder="Digite sua senha atual" />
+        </div>
+        <div class="form-group">
+          <label>Nova senha</label>
+          <input id="editNewPassword" type="password" placeholder="Digite nova senha" />
+        </div>
+        <div class="auth-actions auth-actions-vertical">
+          <button class="btn-primary" id="btnSaveUser"><i class="ti ti-check"></i>Salvar alterações</button>
+        </div>
+      </div>
+
+      <div class="user-panel user-panel-create">
+        <div class="modal-header">
+          <h2>Criar conta</h2>
+        </div>
+        <div class="form-group">
+          <label>Novo usuário</label>
+          <input id="newUserUsername" type="text" placeholder="Digite o usuário" />
+        </div>
+        <div class="form-group">
+          <label>Nova senha</label>
+          <input id="newUserPassword" type="password" placeholder="Digite a senha" />
+        </div>
+        <div class="auth-actions auth-actions-vertical">
+          <button class="btn-secondary" id="btnCreateUser"><i class="ti ti-user-plus"></i>Criar novo usuário</button>
+        </div>
+      </div>
+
+      <div class="user-panel user-panel-list">
+        <div class="panel-header">
+          <h2>Usuários criados</h2>
+        </div>
+        <div id="userList" class="user-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app hidden">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-icon"><i class="ti ti-printer"></i></div>
+        <div class="brand-icon emoji-logo">🖨️</div>
         <div>
-          <h1>HSBO</h1>
+          <h1>Laticínios Carolina
+          </h1>
           <p>Gestão de impressoras</p>
         </div>
       </div>
@@ -42,6 +120,10 @@
           <span class="stat-label">Manutenção</span>
           <span class="stat-value" id="statMaint">0</span>
         </div>
+        <div class="stat-card backup">
+          <span class="stat-label">Backup</span>
+          <span class="stat-value" id="statBackup">0</span>
+        </div>
       </nav>
 
       <nav class="side-nav">
@@ -50,6 +132,9 @@
         </button>
         <button class="side-nav-item" id="navReport" data-view="report">
           <i class="ti ti-report-analytics"></i>Relatório dos IPs
+        </button>
+        <button class="side-nav-item" id="btnUserManagementSide">
+          <i class="ti ti-user"></i>Conta
         </button>
       </nav>
 
@@ -64,21 +149,21 @@
         <div class="topbar-top">
           <div class="search-wrap">
             <i class="ti ti-search"></i>
-            <input id="search" type="text" placeholder="Buscar por código, setor ou problema..." />
+            <input id="search" type="text" placeholder="Buscar por nome, setor ou problema..." />
           </div>
           <div class="filters">
             <button class="chip active" data-status="">Todas</button>
             <button class="chip" data-status="FUNCIONANDO">Funcionando</button>
             <button class="chip" data-status="QUEBRADA">Quebradas</button>
             <button class="chip" data-status="MANUTENCAO">Manutenção</button>
+            <button class="chip" data-status="BACKUP">Backup</button>
             <button class="chip chip-offline" data-status="IP_OFFLINE"><i class="ti ti-wifi-off"></i>IP Offline</button>
           </div>
         </div>
         <div class="topbar-actions">
           <button class="btn-secondary" id="btnCheckAll"><i class="ti ti-refresh"></i>Verificar todos os IPs</button>
           <button class="btn-secondary" id="btnExport"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
-          <button class="btn-secondary" id="btnImport"><i class="ti ti-file-upload"></i>Importar Excel</button>
-          <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none" />
+          <button class="btn-secondary" id="btnUserManagementTop"><i class="ti ti-user"></i>Conta</button>
           <button class="btn-primary" id="btnNew"><i class="ti ti-plus"></i>Nova impressora</button>
         </div>
       </header>
@@ -121,15 +206,16 @@
 
         <div class="search-wrap report-search">
           <i class="ti ti-search"></i>
-          <input id="reportSearch" type="text" placeholder="Buscar por código, setor ou IP..." />
+          <input id="reportSearch" type="text" placeholder="Buscar por nome, setor ou IP..." />
         </div>
 
         <div class="report-table-wrap">
           <table class="report-table">
             <thead>
               <tr>
-                <th>Código</th>
+                <th>Nome</th>
                 <th>Setor</th>
+                <th>Tipo de conexão</th>
                 <th>Status</th>
                 <th>Endereço IP</th>
                 <th>Conectividade</th>
@@ -158,7 +244,7 @@
       <input type="hidden" id="editId" />
 
       <div class="form-group">
-        <label>Código / número serial <span class="req">*</span></label>
+        <label>Nome<span class="req">*</span></label>
         <input id="fCodigo" type="text" placeholder="Ex: ZEQYBQAG2000CED" />
       </div>
 
@@ -168,6 +254,7 @@
           <button type="button" class="status-opt ok" data-value="FUNCIONANDO">Funcionando</button>
           <button type="button" class="status-opt broken" data-value="QUEBRADA">Quebrada</button>
           <button type="button" class="status-opt maint" data-value="MANUTENCAO">Manutenção</button>
+          <button type="button" class="status-opt backup" data-value="BACKUP">Backup</button>
         </div>
       </div>
 
@@ -179,22 +266,29 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label>Setor Antigo <span class="req">*</span></label>
+          <label>Localização <span class="req">*</span></label>
           <input id="fSetorAntigo" type="text" />
         </div>
 
         <div class="form-group">
-          <label>Setor Novo <span class="req">*</span></label>
+          <label>Setor<span class="req">*</span></label>
           <input id="fSetorNovo" type="text" />
         </div>
         <div class="form-group">
-          <label>Marca / modelo</label>
+          <label>Tipo de conexão <span class="req">*</span></label>
+          <div class="status-select" id="fConnectionTypeGroup">
+            <button type="button" class="status-opt conn-ethernet" data-connection="ETHERNET">Ethernet</button>
+            <button type="button" class="status-opt conn-usb" data-connection="USB">USB</button>
+          </div>
+        </div>
+        <div class="form-group" id="formGroupMac">
+          <label>Endereço MAC <span class="req" id="fMacReq" style="display:none;">*</span></label>
           <input id="fMarcaModelo" type="text" placeholder="" />
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Endereço IP</label>
+      <div class="form-group" id="formGroupIp">
+        <label>Endereço IP <span class="req" id="fIpReq" style="display:none;">*</span></label>
         <input id="fIp" type="text" placeholder="Ex: 192.168.0.10" />
       </div>
 
@@ -220,7 +314,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 
 </html>

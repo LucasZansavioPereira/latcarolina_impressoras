@@ -82,6 +82,13 @@ public class PrinterConnectivityService {
     public Printer verificarImpressora(Printer printer) {
         String ip = printer.getIp();
 
+        // If printer is USB, skip network checks and mark as not-verified
+        if (printer.getConnectionType() == Printer.ConnectionType.USB) {
+            printer.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
+            printer.setLastConnectivityCheck(Instant.now());
+            return repository.save(printer);
+        }
+
         if (ip == null || ip.isBlank()) {
             // Sem IP cadastrado: não há o que testar, não altera o status atual.
             return printer;
@@ -92,9 +99,91 @@ public class PrinterConnectivityService {
                 ? Printer.ConnectivityStatus.ONLINE
                 : Printer.ConnectivityStatus.INDISPONIVEL;
 
+        // If we have a MAC configured in the 'marcaModelo' field (UI shows it as Endereço MAC),
+        // try to verify the IP -> MAC mapping and detect mismatches.
+        String expectedMac = (printer.getMarcaModelo() != null) ? printer.getMarcaModelo().trim() : null;
+        if (online && expectedMac != null && !expectedMac.isBlank()) {
+            try {
+                String actualMac = lookupMacForIpWithRetry(ip, 2, 300);
+                if (actualMac != null && !actualMac.isBlank()) {
+                    if (!normalizeMac(actualMac).equals(normalizeMac(expectedMac))) {
+                        // Treat MAC mismatch as IP indisponível per user request
+                        novoStatus = Printer.ConnectivityStatus.INDISPONIVEL;
+                    }
+                } else {
+                    // If we couldn't read the MAC from ARP, treat as indisponível to be safe
+                    novoStatus = Printer.ConnectivityStatus.INDISPONIVEL;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
         printer.setConnectivityStatus(novoStatus);
         printer.setLastConnectivityCheck(Instant.now());
         return repository.save(printer);
+    }
+
+    private String normalizeMac(String mac) {
+        if (mac == null) return "";
+        return mac.replaceAll("[^0-9A-Fa-f]", "").toLowerCase();
+    }
+
+    private String lookupMacForIpWithRetry(String ip, int attempts, long waitMs) throws InterruptedException {
+        for (int i = 0; i < attempts; i++) {
+            String mac = lookupMacForIp(ip);
+            if (mac != null && !mac.isBlank()) return mac;
+            Thread.sleep(waitMs);
+        }
+        return null;
+    }
+
+    private String lookupMacForIp(String ip) {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("linux")) {
+            return lookupMacFromProcArp(ip);
+        } else if (os.contains("windows")) {
+            return lookupMacFromArpA(ip);
+        } else {
+            // Try generic arp -a fallback
+            return lookupMacFromArpA(ip);
+        }
+    }
+
+    private String lookupMacFromProcArp(String ip) {
+        try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader("/proc/net/arp"))) {
+            String line;
+            br.readLine(); // header
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.trim().split("\\s+");
+                if (parts.length >= 4 && parts[0].equals(ip)) {
+                    String mac = parts[3];
+                    if (!mac.equals("00:00:00:00:00:00")) return mac;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Erro lendo /proc/net/arp: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private String lookupMacFromArpA(String ip) {
+        try {
+            Process p = new ProcessBuilder("arp", "-a").start();
+            try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (line.contains(ip)) {
+                        // Try to extract MAC-like token
+                                java.util.regex.Matcher m = java.util.regex.Pattern.compile("([0-9A-Fa-f]{2}(?:[:-][0-9A-Fa-f]{2}){5})").matcher(line);
+                        if (m.find()) return m.group(1);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Erro executando arp -a: {}", e.getMessage());
+        }
+        return null;
     }
 
     /** Verificação manual sob demanda para uma impressora específica (por id). */

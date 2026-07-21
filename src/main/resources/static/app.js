@@ -1,9 +1,27 @@
-const API = '/api/printers';
+﻿const API = '/api/printers';
+const AUTH_API = '/api/auth';
 let printers = [];
 let currentStatus = '';
 let selectedStatus = 'FUNCIONANDO';
+let loggedUsername = '';
 
-const statusLabel = { FUNCIONANDO: 'Funcionando', QUEBRADA: 'Quebrada', MANUTENCAO: 'Manutenção' };
+let appElement;
+let loginScreen;
+let userScreen;
+let loginUsername;
+let loginPassword;
+let currentUsername;
+let editUsernameCurrent;
+let editCurrentPassword;
+let editNewPassword;
+let newUserUsername;
+let newUserPassword;
+let userManagementTopButton;
+let userManagementSideButton;
+let userListElement;
+let createUserSection;
+
+const statusLabel = { FUNCIONANDO: 'Funcionando', QUEBRADA: 'Quebrada', MANUTENCAO: 'Manutenção', BACKUP: 'Backup' };
 
 const connectivityLabel = {
   ONLINE: { text: '🟢 IP Online', cssClass: 'conn-online' },
@@ -12,7 +30,8 @@ const connectivityLabel = {
 };
 
 function getConnectivityInfo(p) {
-  if (!p.ip) return null; // sem IP cadastrado, não exibe status de conectividade
+  if (!p.ip) return null;
+  if (p.connectionType === 'USB') return null;
   return connectivityLabel[p.connectivityStatus] || connectivityLabel.NAO_VERIFICADO;
 }
 
@@ -44,6 +63,7 @@ function render() {
   document.getElementById('statOk').textContent = printers.filter(p => p.status === 'FUNCIONANDO').length;
   document.getElementById('statBroken').textContent = printers.filter(p => p.status === 'QUEBRADA').length;
   document.getElementById('statMaint').textContent = printers.filter(p => p.status === 'MANUTENCAO').length;
+  document.getElementById('statBackup').textContent = printers.filter(p => p.status === 'BACKUP').length;
 
   document.getElementById('emptyState').style.display = filtered.length === 0 ? 'block' : 'none';
   grid.innerHTML = '';
@@ -55,12 +75,15 @@ function render() {
     card.innerHTML = `
       <div class="card-top">
         <span class="card-codigo">${escapeHtml(p.codigo)}</span>
-        <span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span>
+          <span class="conn-type ${p.connectionType === 'USB' ? 'usb' : 'ethernet'}">${p.connectionType === 'USB' ? 'USB' : 'Ethernet'}</span>
+        </div>
       </div>
       ${conn ? `<p class="card-connectivity ${conn.cssClass}">${conn.text}</p>` : ''}
       <p class="card-problema">${escapeHtml(p.problema) || 'Sem observações'}</p>
       <div class="card-meta">
-        ${(p.setorAntigo || p.setorNovo) ? `<span><i class="ti ti-map-pin"></i>${escapeHtml(p.setorAntigo || '-')} → ${escapeHtml(p.setorNovo || '-')}</span>` : ''}
+        ${(p.setorAntigo || p.setorNovo) ? `<span><i class="ti ti-map-pin"></i>${escapeHtml(p.setorAntigo || '-') } → ${escapeHtml(p.setorNovo || '-')}</span>` : ''}
         ${p.marcaModelo ? `<span><i class="ti ti-tag"></i>${escapeHtml(p.marcaModelo)}</span>` : ''}
       </div>
     `;
@@ -73,8 +96,6 @@ function escapeHtml(s) {
   return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-
-//tem que funfa
 function openModal(p) {
   document.getElementById('modalTitle').textContent = p ? 'Editar impressora' : 'Nova impressora';
   document.getElementById('editId').value = p ? p.id : '';
@@ -84,9 +105,11 @@ function openModal(p) {
   document.getElementById('fSetorNovo').value = p ? (p.setorNovo || '') : '';
   document.getElementById('fMarcaModelo').value = p ? (p.marcaModelo || '') : '';
   document.getElementById('fIp').value = p ? (p.ip || '') : '';
+  setConnectionButtons(p ? (p.connectionType || 'ETHERNET') : 'ETHERNET');
   selectedStatus = p ? p.status : 'FUNCIONANDO';
   updateStatusButtons();
   renderConnectivityInfo(p);
+  updateConnectionFieldsUI();
   document.getElementById('btnDelete').style.display = p ? 'flex' : 'none';
   document.getElementById('modalOverlay').classList.add('open');
   document.getElementById('fCodigo').focus();
@@ -97,8 +120,7 @@ function renderConnectivityInfo(p) {
   const badge = document.getElementById('connBadge');
   const checked = document.getElementById('connChecked');
 
-  // Só exibe o bloco de conectividade ao editar uma impressora que já possua IP cadastrado
-  if (!p || !p.ip) {
+  if (!p || !p.ip || p.connectionType === 'USB') {
     wrap.style.display = 'none';
     return;
   }
@@ -112,12 +134,43 @@ function renderConnectivityInfo(p) {
     : 'Ainda não verificado';
 }
 
+function getSelectedConnectionType() {
+  const btn = document.querySelector('#fConnectionTypeGroup .status-opt.selected');
+  return btn ? btn.dataset.connection : 'ETHERNET';
+}
+
+function setConnectionButtons(type) {
+  document.querySelectorAll('#fConnectionTypeGroup .status-opt').forEach(b => b.classList.toggle('selected', b.dataset.connection === type));
+}
+
+function updateConnectionFieldsUI() {
+  const type = getSelectedConnectionType();
+  const macGroup = document.getElementById('formGroupMac');
+  const ipGroup = document.getElementById('formGroupIp');
+  const ipReq = document.getElementById('fIpReq');
+  const macReq = document.getElementById('fMacReq');
+  const connInfo = document.getElementById('connInfo');
+
+  if (type === 'USB') {
+    macGroup.style.display = 'none';
+    ipGroup.style.display = 'none';
+    ipReq.style.display = 'none';
+    macReq.style.display = 'none';
+    connInfo.style.display = 'none';
+  } else {
+    macGroup.style.display = 'block';
+    ipGroup.style.display = 'block';
+    ipReq.style.display = 'inline';
+    macReq.style.display = 'inline';
+  }
+}
+
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
 }
 
 function updateStatusButtons() {
-  document.querySelectorAll('.status-opt').forEach(btn => {
+  document.querySelectorAll('#fStatusGroup .status-opt').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.value === selectedStatus);
   });
   updateProblemaRequirement();
@@ -136,21 +189,111 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-document.querySelectorAll('.status-opt').forEach(btn => {
-  btn.addEventListener('click', () => {
-    selectedStatus = btn.dataset.value;
-    updateStatusButtons();
-  });
-});
+function showUserScreen() {
+  loginScreen.style.display = 'none';
+  userScreen.style.display = 'flex';
+  appElement.classList.add('hidden');
+  editUsernameCurrent.value = loggedUsername || '';
+  editCurrentPassword.value = '';
+  editNewPassword.value = '';
+  newUserUsername.value = '';
+  newUserPassword.value = '';
+  createUserSection.style.display = 'block';
+  loadUsers();
+}
 
-document.querySelectorAll('.chip').forEach(chip => {
-  chip.addEventListener('click', () => {
-    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    currentStatus = chip.dataset.status;
-    render();
-  });
-});
+async function loadUsers() {
+  if (!userListElement) return;
+  userListElement.innerHTML = '<div class="empty-list">Carregando usuários...</div>';
+  if (!userListElement) return;
+  try {
+    const res = await fetch(`${AUTH_API}/users`);
+    if (!res.ok) throw new Error('Falha ao carregar usuários');
+    const users = await res.json();
+    renderUserList(users);
+  } catch (e) {
+    userListElement.innerHTML = '<div class="empty-list">Não foi possível carregar usuários</div>';
+  }
+}
+
+function renderUserList(users) {
+  if (!userListElement) return;
+  const sorted = (users || []).slice().sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+  userListElement.innerHTML = sorted.length
+    ? sorted.map(user => `
+      <div class="user-list-item${user.username === loggedUsername ? ' current' : ''}" data-username="${escapeHtml(user.username)}">
+        <span>${escapeHtml(user.username)}</span>
+        <div class="user-list-actions">
+          ${user.username === loggedUsername ? '<span class="user-list-current">atual</span>' : '<button type="button" class="btn-danger-small user-delete-btn" title="Excluir usuário"><i class="ti ti-trash"></i>Excluir</button>'}
+        </div>
+      </div>
+    `).join('')
+    : '<div class="empty-list">Nenhum usuário cadastrado</div>';
+}
+
+async function deleteUser(username) {
+  if (!username) return;
+  if (username === loggedUsername) {
+    showToast('Não é possível excluir o usuário atual');
+    return;
+  }
+  if (!confirm(`Excluir o usuário "${username}"?`)) return;
+
+  try {
+    const res = await fetch(`${AUTH_API}/users/${encodeURIComponent(username)}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error('Falha ao excluir usuário');
+    showToast('Usuário excluído com sucesso');
+    loadUsers();
+  } catch (e) {
+    showToast(e.message);
+  }
+}
+
+function showAppScreen() {
+  loginScreen.style.display = 'none';
+  userScreen.style.display = 'none';
+  appElement.classList.remove('hidden');
+}
+
+function completeLogin() {
+  loginScreen.style.display = 'none';
+  userScreen.style.display = 'none';
+  appElement.classList.remove('hidden');
+  currentUsername.textContent = loggedUsername || '-';
+  editUsernameCurrent.value = loggedUsername || '';
+  loginUsername.value = '';
+  loginPassword.value = '';
+  loadPrinters();
+  loadUsers();
+}
+
+async function login() {
+  const username = loginUsername.value.trim();
+  const password = loginPassword.value.trim();
+  if (!username || !password) {
+    showToast('Digite usuário e senha');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${AUTH_API}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.erro || 'Falha ao fazer login');
+    }
+    const data = await res.json();
+    loggedUsername = data.username;
+    completeLogin();
+  } catch (e) {
+    showToast(e.message);
+  }
+}
 
 function formatDateBr(iso) {
   if (!iso) return '';
@@ -164,12 +307,13 @@ function formatDateBr(iso) {
 function printerToRow(p) {
   const conn = getConnectivityInfo(p);
   return {
-    'Código': p.codigo || '',
+    'Nome': p.codigo || '',
     'Status': statusLabel[p.status] || p.status || '',
     'Problema / Observação': p.problema || '',
-    'Setor Antigo': p.setorAntigo || '',
-    'Setor Novo': p.setorNovo || '',
-    'Marca / Modelo': p.marcaModelo || '',
+    'Localização': p.setorAntigo || '',
+    'Setor': p.setorNovo || '',
+    'Endereço MAC': p.marcaModelo || '',
+    'Tipo de conexão': p.connectionType || '',
     'Endereço IP': p.ip || '',
     'Conectividade': conn ? conn.text.replace(/^[^\s]+\s/, '') : '',
     'Atualizado em': formatDateBr(p.updatedAt)
@@ -189,8 +333,8 @@ function addSheet(wb, sheetName, list) {
   const rows = list.map(printerToRow);
   const ws = rows.length
     ? XLSX.utils.json_to_sheet(rows)
-    : XLSX.utils.aoa_to_sheet([['Código', 'Status', 'Problema / Observação', 'Setor Antigo', 'Setor Novo', 'Marca / Modelo', 'Atualizado em']]);
-  ws['!cols'] = autoSizeColumns(rows.length ? rows : [{ 'Código': '', 'Status': '', 'Problema / Observação': '', 'Setor Antigo': '', 'Setor Novo': '', 'Marca / Modelo': '', 'Atualizado em': '' }]);
+    : XLSX.utils.aoa_to_sheet([['Nome','Status','Problema / Observação','Localização','Setor','Endereço MAC','Tipo de conexão','Endereço IP','Conectividade','Atualizado em']]);
+  ws['!cols'] = autoSizeColumns(rows.length ? rows : [{ 'Nome': '', 'Status': '', 'Problema / Observação': '', 'Localização': '', 'Setor': '', 'Endereço MAC': '', 'Tipo de conexão': '', 'Endereço IP': '', 'Conectividade': '', 'Atualizado em': '' }]);
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
 }
 
@@ -201,261 +345,16 @@ function exportToExcel() {
   }
 
   const wb = XLSX.utils.book_new();
-
   addSheet(wb, 'Todas', printers);
   addSheet(wb, 'Funcionando', printers.filter(p => p.status === 'FUNCIONANDO'));
   addSheet(wb, 'Manutenção', printers.filter(p => p.status === 'MANUTENCAO'));
   addSheet(wb, 'Quebradas', printers.filter(p => p.status === 'QUEBRADA'));
+  addSheet(wb, 'Backup', printers.filter(p => p.status === 'BACKUP'));
 
   const date = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(wb, `impressoras_${date}.xlsx`);
   showToast('Planilha exportada com sucesso');
 }
-
-document.getElementById('btnExport').addEventListener('click', exportToExcel);
-
-// ---------- Importar Excel ----------
-
-function normalizeText(s) {
-  return String(s ?? '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-    .toLowerCase()
-    .replace(/[_\-\/]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-const HEADER_ALIASES = {
-  codigo: ['codigo', 'código', 'codigo serial', 'numero de serie', 'número de série', 'serial', 'code', 'cod', 'numero serial', 'número serial', 'num serial', 'n serial', 'nº serial', 'serie', 'série', 'serial number', 'numero de serie completo'],
-  status: ['status', 'situacao', 'situação', 'estado'],
-  problema: ['problema', 'problema observacao', 'observacao', 'observação', 'obs', 'descricao', 'descrição', 'defeito'],
-  setorAntigo: ['setor antigo', 'setor origem', 'local antigo', 'setor anterior', 'origem'],
-  setorNovo: ['setor novo', 'setor atual', 'setor', 'local', 'localizacao', 'localização', 'destino'],
-  marcaModelo: ['marca modelo', 'marca', 'modelo', 'fabricante'],
-  ip: ['ip', 'endereco ip', 'endereço ip', 'ip address']
-};
-
-const STATUS_ALIASES = {
-  FUNCIONANDO: ['funcionando', 'ok', 'ativa', 'ativo', 'normal', 'funciona', 'operante', 'operacional'],
-  QUEBRADA: ['quebrada', 'quebrado', 'defeito', 'com defeito', 'danificada', 'danificado', 'parada', 'parado', 'quebradas'],
-  MANUTENCAO: ['manutencao', 'manutenção', 'em manutencao', 'em manutenção', 'revisao', 'revisão']
-};
-
-function normalizeStatus(value) {
-  const v = normalizeText(value);
-  if (!v) return 'FUNCIONANDO';
-  for (const [status, aliases] of Object.entries(STATUS_ALIASES)) {
-    if (aliases.some(a => v === a || v.includes(a))) return status;
-  }
-  return 'FUNCIONANDO';
-}
-
-function buildHeaderMap(row) {
-  // row: primeiro objeto de dados da planilha (chaves = cabeçalhos originais)
-  const map = {}; // field -> [colunas originais correspondentes]
-  const unmatched = [];
-
-  Object.keys(row).forEach(originalHeader => {
-    const norm = normalizeText(originalHeader);
-    if (!norm) return; // cabeçalho vazio/em branco: não há como reconhecer o campo
-    let matched = false;
-    for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
-      if (aliases.includes(norm)) {
-        if (!map[field]) map[field] = [];
-        map[field].push(originalHeader);
-        matched = true;
-      }
-    }
-    if (!matched) unmatched.push({ originalHeader, norm });
-  });
-
-  // Fallback: para cabeçalhos que não bateram exatamente com nenhum alias,
-  // tenta correspondência parcial (ex.: "Nº de Série Completo" contém "serie").
-  unmatched.forEach(({ originalHeader, norm }) => {
-    for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
-      // Exige pelo menos 4 caracteres no termo comparado para evitar falsos positivos
-      // (ex.: "obs" não deve casar com "Centro Obstétrico").
-      const isPartialMatch = aliases.some(a =>
-        (a.length >= 4 && norm.includes(a)) || (norm.length >= 4 && a.includes(norm))
-      );
-      if (isPartialMatch) {
-        if (!map[field]) map[field] = [];
-        map[field].push(originalHeader);
-        break; // usa o primeiro campo compatível para evitar ambiguidade
-      }
-    }
-  });
-
-  return map;
-}
-
-function rowToPrinter(row, headerMap) {
-  const getValue = (field) => {
-    const cols = headerMap[field];
-    if (!cols || !cols.length) return '';
-    return cols
-      .map(c => (row[c] !== undefined && row[c] !== null) ? String(row[c]).trim() : '')
-      .filter(Boolean)
-      .join(' ');
-  };
-
-  const codigo = getValue('codigo');
-  if (!codigo) return null;
-
-  return {
-    codigo,
-    status: normalizeStatus(getValue('status')),
-    problema: getValue('problema'),
-    setorAntigo: getValue('setorAntigo'),
-    setorNovo: getValue('setorNovo'),
-    marcaModelo: getValue('marcaModelo'),
-    ip: getValue('ip')
-  };
-}
-
-function extractPrintersFromWorkbook(workbook) {
-  const byCodigo = new Map();
-
-  workbook.SheetNames.forEach(sheetName => {
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-    if (!rows.length) return;
-
-    const headerMap = buildHeaderMap(rows[0]);
-    if (!headerMap.codigo) return; // planilha sem coluna de código reconhecível
-
-    rows.forEach(row => {
-      const printer = rowToPrinter(row, headerMap);
-      if (printer) byCodigo.set(printer.codigo, printer);
-    });
-  });
-
-  return Array.from(byCodigo.values());
-}
-
-async function importPrinters(list) {
-  const existingCodigos = new Set(printers.map(p => (p.codigo || '').trim()));
-  const toCreate = list.filter(p => !existingCodigos.has(p.codigo));
-  const skipped = list.length - toCreate.length;
-
-  let success = 0;
-  let failed = 0;
-
-  for (const printer of toCreate) {
-    try {
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(printer)
-      });
-      if (res.ok) success++; else failed++;
-    } catch (e) {
-      failed++;
-    }
-  }
-
-  await loadPrinters();
-
-  const parts = [`${success} adicionada(s)`];
-  if (skipped > 0) parts.push(`${skipped} já existente(s) ignorada(s)`);
-  if (failed > 0) parts.push(`${failed} com erro`);
-  showToast(`Importação concluída: ${parts.join(', ')}`);
-}
-
-document.getElementById('btnImport').addEventListener('click', () => {
-  document.getElementById('importFile').click();
-});
-
-document.getElementById('importFile').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  try {
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data, { type: 'array' });
-    const list = extractPrintersFromWorkbook(workbook);
-
-    if (!list.length) {
-      showToast('Nenhuma impressora reconhecida no arquivo. Verifique as colunas.');
-      return;
-    }
-
-    if (!confirm(`Foram encontradas ${list.length} impressora(s) no arquivo. Deseja importar?`)) {
-      return;
-    }
-
-    showToast('Importando...');
-    await importPrinters(list);
-  } catch (err) {
-    showToast('Erro ao ler o arquivo. Verifique se é um Excel válido.');
-  } finally {
-    e.target.value = '';
-  }
-});
-
-document.getElementById('btnNew').addEventListener('click', () => openModal(null));
-document.getElementById('btnClose').addEventListener('click', closeModal);
-document.getElementById('btnCancel').addEventListener('click', closeModal);
-document.getElementById('modalOverlay').addEventListener('click', (e) => {
-  if (e.target.id === 'modalOverlay') closeModal();
-});
-document.getElementById('search').addEventListener('input', render);
-
-document.getElementById('btnSave').addEventListener('click', async () => {
-  const codigo = document.getElementById('fCodigo').value.trim();
-  const problema = document.getElementById('fProblema').value.trim();
-  const setorAntigo = document.getElementById('fSetorAntigo').value.trim();
-  const setorNovo = document.getElementById('fSetorNovo').value.trim();
-
-  if (!codigo) {
-    showToast('Informe o código da impressora');
-    document.getElementById('fCodigo').focus();
-    return;
-  }
-
-  if (selectedStatus === 'QUEBRADA' && !problema) {
-    showToast('Informe o problema da impressora quebrada');
-    document.getElementById('fProblema').focus();
-    return;
-  }
-
-  if (!setorAntigo) {
-    showToast('Informe o setor antigo');
-    document.getElementById('fSetorAntigo').focus();
-    return;
-  }
-
-  if (!setorNovo) {
-    showToast('Informe o setor novo');
-    document.getElementById('fSetorNovo').focus();
-    return;
-  }
-
-  const id = document.getElementById('editId').value;
-  const payload = {
-    codigo,
-    status: selectedStatus,
-    problema,
-    setorAntigo,
-    setorNovo,
-    marcaModelo: document.getElementById('fMarcaModelo').value.trim(),
-    ip: document.getElementById('fIp').value.trim()
-  };
-
-  try {
-    const res = await fetch(id ? `${API}/${id}` : API, {
-      method: id ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error('Falha ao salvar');
-    closeModal();
-    showToast(id ? 'Impressora atualizada' : 'Impressora cadastrada');
-    loadPrinters();
-  } catch (e) {
-    showToast('Erro ao salvar. Tente novamente.');
-  }
-});
 
 async function checkAllIps(btn) {
   const comIp = printers.filter(p => p.ip && p.ip.trim()).length;
@@ -487,48 +386,6 @@ async function checkAllIps(btn) {
   }
 }
 
-document.getElementById('btnCheckAll').addEventListener('click', (e) => checkAllIps(e.currentTarget));
-document.getElementById('btnCheckAllReport').addEventListener('click', (e) => checkAllIps(e.currentTarget));
-
-document.getElementById('btnCheckNow').addEventListener('click', async () => {
-  const id = document.getElementById('editId').value;
-  if (!id) return;
-  const btn = document.getElementById('btnCheckNow');
-  btn.disabled = true;
-  try {
-    const res = await fetch(`${API}/${id}/verificar-conectividade`, { method: 'POST' });
-    if (!res.ok) throw new Error('Falha ao verificar');
-    const updated = await res.json();
-    renderConnectivityInfo(updated);
-    const idx = printers.findIndex(pr => pr.id === updated.id);
-    if (idx !== -1) printers[idx] = updated;
-    render();
-    renderReport();
-    showToast('Conectividade verificada');
-  } catch (e) {
-    showToast('Erro ao verificar conectividade');
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-document.getElementById('btnDelete').addEventListener('click', async () => {
-  const id = document.getElementById('editId').value;
-  if (!id) return;
-  if (!confirm('Excluir esta impressora do registro?')) return;
-  try {
-    const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Falha ao excluir');
-    closeModal();
-    showToast('Impressora excluída');
-    loadPrinters();
-  } catch (e) {
-    showToast('Erro ao excluir. Tente novamente.');
-  }
-});
-
-// ---------- Navegação entre abas (Impressoras / Relatório dos IPs) ----------
-
 function switchView(view) {
   document.getElementById('mainView').style.display = view === 'main' ? 'block' : 'none';
   document.getElementById('reportView').style.display = view === 'report' ? 'block' : 'none';
@@ -537,14 +394,10 @@ function switchView(view) {
   if (view === 'report') renderReport();
 }
 
-document.getElementById('navPrinters').addEventListener('click', () => switchView('main'));
-document.getElementById('navReport').addEventListener('click', () => switchView('report'));
-document.getElementById('reportSearch').addEventListener('input', renderReport);
-
 function renderReport() {
   const tbody = document.getElementById('reportTableBody');
   const emptyState = document.getElementById('reportEmptyState');
-  if (!tbody) return; // view ainda não carregada
+  if (!tbody) return;
 
   const search = document.getElementById('reportSearch').value.toLowerCase();
   const comIp = printers.filter(p => p.ip && p.ip.trim());
@@ -573,6 +426,7 @@ function renderReport() {
       tr.innerHTML = `
         <td class="rt-codigo">${escapeHtml(p.codigo)}</td>
         <td class="rt-setor">${escapeHtml(p.setorNovo || p.setorAntigo || '-')}</td>
+        <td class="rt-conn-type"><span class="conn-type ${p.connectionType === 'USB' ? 'usb' : 'ethernet'}">${p.connectionType === 'USB' ? 'USB' : 'Ethernet'}</span></td>
         <td><span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span></td>
         <td class="rt-ip">${escapeHtml(p.ip)}</td>
         <td><span class="rt-conn ${conn.cssClass}">${conn.text}</span></td>
@@ -583,4 +437,175 @@ function renderReport() {
     });
 }
 
-loadPrinters();
+function init() {
+  appElement = document.querySelector('.app');
+  loginScreen = document.getElementById('loginScreen');
+  userScreen = document.getElementById('userScreen');
+  loginUsername = document.getElementById('loginUsername');
+  loginPassword = document.getElementById('loginPassword');
+  currentUsername = document.getElementById('currentUsername');
+  editUsernameCurrent = document.getElementById('editUsernameCurrent');
+  editCurrentPassword = document.getElementById('editCurrentPassword');
+  editNewPassword = document.getElementById('editNewPassword');
+  newUserUsername = document.getElementById('newUserUsername');
+  newUserPassword = document.getElementById('newUserPassword');
+  userManagementTopButton = document.getElementById('btnUserManagementTop');
+  userManagementSideButton = document.getElementById('btnUserManagementSide');
+  userListElement = document.getElementById('userList');
+  createUserSection = document.getElementById('createUserSection');
+
+  if (userListElement) {
+    userListElement.addEventListener('click', (e) => {
+      const btn = e.target.closest('.user-delete-btn');
+      if (!btn) return;
+      const item = btn.closest('.user-list-item');
+      if (!item) return;
+      deleteUser(item.dataset.username);
+    });
+  }
+
+  document.getElementById('btnLogin').addEventListener('click', login);
+  if (userManagementTopButton) {
+    userManagementTopButton.addEventListener('click', showUserScreen);
+  }
+  if (userManagementSideButton) {
+    userManagementSideButton.addEventListener('click', showUserScreen);
+  }
+  document.getElementById('btnBackToLogin').addEventListener('click', showAppScreen);
+  document.getElementById('btnSaveUser').addEventListener('click', async () => {
+    const currentPassword = editCurrentPassword.value.trim();
+    const newPassword = editNewPassword.value.trim();
+
+    if (!currentPassword) {
+      showToast('Digite a senha atual para salvar alterações');
+      return;
+    }
+    if (!newPassword) {
+      showToast('Digite uma nova senha');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${AUTH_API}/users/${encodeURIComponent(loggedUsername)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.erro || 'Falha ao salvar alterações');
+      }
+      const data = await res.json();
+      loggedUsername = data.username;
+      currentUsername.textContent = loggedUsername;
+      editUsernameCurrent.value = loggedUsername;
+      editCurrentPassword.value = '';
+      editNewPassword.value = '';
+      showToast('Alterações salvas com sucesso');
+    } catch (e) {
+      showToast(e.message);
+    }
+  });
+
+  document.getElementById('btnCreateUser').addEventListener('click', async () => {
+    const username = newUserUsername.value.trim();
+    const password = newUserPassword.value.trim();
+    if (!username || !password) {
+      showToast('Digite usuário e senha para criar novo usuário');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${AUTH_API}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.erro || 'Falha ao criar usuário');
+      }
+      newUserUsername.value = '';
+      newUserPassword.value = '';
+      showToast('Usuário criado com sucesso');
+      loadUsers();
+    } catch (e) {
+      showToast(e.message);
+    }
+  });
+
+  document.querySelectorAll('#fStatusGroup .status-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedStatus = btn.dataset.value;
+      updateStatusButtons();
+    });
+  });
+
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentStatus = chip.dataset.status;
+      render();
+    });
+  });
+
+  document.getElementById('btnExport').addEventListener('click', exportToExcel);
+  document.getElementById('btnNew').addEventListener('click', () => openModal(null));
+  document.getElementById('btnClose').addEventListener('click', closeModal);
+  document.getElementById('btnCancel').addEventListener('click', closeModal);
+  document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'modalOverlay') closeModal();
+  });
+  document.querySelectorAll('#fConnectionTypeGroup .status-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setConnectionButtons(btn.dataset.connection);
+      updateConnectionFieldsUI();
+    });
+  });
+  document.getElementById('search').addEventListener('input', render);
+  document.getElementById('btnCheckAll').addEventListener('click', (e) => checkAllIps(e.currentTarget));
+  document.getElementById('btnCheckAllReport').addEventListener('click', (e) => checkAllIps(e.currentTarget));
+  document.getElementById('btnCheckNow').addEventListener('click', async () => {
+    const id = document.getElementById('editId').value;
+    if (!id) return;
+    const btn = document.getElementById('btnCheckNow');
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${API}/${id}/verificar-conectividade`, { method: 'POST' });
+      if (!res.ok) throw new Error('Falha ao verificar');
+      const updated = await res.json();
+      renderConnectivityInfo(updated);
+      const idx = printers.findIndex(pr => pr.id === updated.id);
+      if (idx !== -1) printers[idx] = updated;
+      render();
+      renderReport();
+      showToast('Conectividade verificada');
+    } catch (e) {
+      showToast('Erro ao verificar conectividade');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  document.getElementById('btnDelete').addEventListener('click', async () => {
+    const id = document.getElementById('editId').value;
+    if (!id) return;
+    if (!confirm('Excluir esta impressora do registro?')) return;
+    try {
+      const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Falha ao excluir');
+      closeModal();
+      showToast('Impressora excluída');
+      loadPrinters();
+    } catch (e) {
+      showToast('Erro ao excluir. Tente novamente.');
+    }
+  });
+  document.getElementById('navPrinters').addEventListener('click', () => switchView('main'));
+  document.getElementById('navReport').addEventListener('click', () => switchView('report'));
+  document.getElementById('reportSearch').addEventListener('input', renderReport);
+
+  loadPrinters();
+}
+
+window.addEventListener('DOMContentLoaded', init);
