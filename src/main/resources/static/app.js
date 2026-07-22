@@ -84,7 +84,8 @@ function render() {
       <p class="card-problema">${escapeHtml(p.problema) || 'Sem observações'}</p>
       <div class="card-meta">
         ${(p.setorAntigo || p.setorNovo) ? `<span><i class="ti ti-map-pin"></i>${escapeHtml(p.setorAntigo || '-') } → ${escapeHtml(p.setorNovo || '-')}</span>` : ''}
-        ${p.marcaModelo ? `<span><i class="ti ti-tag"></i>${escapeHtml(p.marcaModelo)}</span>` : ''}
+        ${p.modelo ? `<span><i class="ti ti-tag"></i>${escapeHtml(p.modelo)}</span>` : ''}
+        ${p.marcaModelo ? `<span><i class="ti ti-chip"></i>${escapeHtml(p.marcaModelo)}</span>` : ''}
       </div>
     `;
     card.addEventListener('click', () => openModal(p));
@@ -100,6 +101,7 @@ function openModal(p) {
   document.getElementById('modalTitle').textContent = p ? 'Editar impressora' : 'Nova impressora';
   document.getElementById('editId').value = p ? p.id : '';
   document.getElementById('fCodigo').value = p ? p.codigo : '';
+  document.getElementById('fModelo').value = p ? (p.modelo || '') : '';
   document.getElementById('fProblema').value = p ? (p.problema || '') : '';
   document.getElementById('fSetorAntigo').value = p ? (p.setorAntigo || '') : '';
   document.getElementById('fSetorNovo').value = p ? (p.setorNovo || '') : '';
@@ -191,6 +193,7 @@ function showToast(msg) {
 
 function getPrinterPayload() {
   const codigo = document.getElementById('fCodigo').value.trim();
+  const modelo = document.getElementById('fModelo').value.trim();
   const problema = document.getElementById('fProblema').value.trim();
   const setorAntigo = document.getElementById('fSetorAntigo').value.trim();
   const setorNovo = document.getElementById('fSetorNovo').value.trim();
@@ -200,6 +203,7 @@ function getPrinterPayload() {
 
   const payload = {
     codigo,
+    modelo,
     status: selectedStatus,
     problema,
     setorAntigo,
@@ -230,6 +234,11 @@ async function savePrinter() {
 
   if (!payload.setorAntigo || !payload.setorNovo) {
     showToast('Preencha os campos de localização e setor');
+    return;
+  }
+
+  if (!payload.modelo) {
+    showToast('Informe o modelo da impressora');
     return;
   }
 
@@ -396,6 +405,7 @@ function printerToRow(p) {
   const conn = getConnectivityInfo(p);
   return {
     'Nome': p.codigo || '',
+    'Modelo': p.modelo || '',
     'Status': statusLabel[p.status] || p.status || '',
     'Problema / Observação': p.problema || '',
     'Localização': p.setorAntigo || '',

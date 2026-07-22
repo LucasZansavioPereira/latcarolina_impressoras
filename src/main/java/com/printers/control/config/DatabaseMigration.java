@@ -38,13 +38,22 @@ public class DatabaseMigration implements CommandLineRunner {
             System.err.println("DatabaseMigration: unable to alter printer status columns — " + e.getMessage());
         }
 
-        boolean hasCodigoColumn = false;
-        try (ResultSet columns = conn.getMetaData().getColumns(null, null, "PRINTERS", "CODIGO")) {
-            hasCodigoColumn = columns.next();
+        if (!columnExists(conn, "PRINTERS", "CODIGO")) {
+            st.execute("ALTER TABLE printers ADD COLUMN codigo VARCHAR(255)");
         }
 
-        if (!hasCodigoColumn) {
-            st.execute("ALTER TABLE printers ADD COLUMN codigo VARCHAR(255)");
+        if (!columnExists(conn, "PRINTERS", "MODELO")) {
+            try {
+                st.execute("ALTER TABLE printers ADD COLUMN modelo VARCHAR(255)");
+            } catch (SQLException e) {
+                System.err.println("DatabaseMigration: unable to add modelo column — " + e.getMessage());
+            }
+        }
+    }
+
+    private boolean columnExists(Connection conn, String tableName, String columnName) throws SQLException {
+        try (ResultSet columns = conn.getMetaData().getColumns(null, null, tableName, columnName)) {
+            return columns.next();
         }
     }
 

@@ -29,6 +29,9 @@ public class Printer {
 
     private String setorNovo;
 
+    @Column
+    private String modelo;
+
     private String marcaModelo;
 
     @Enumerated(EnumType.STRING)
@@ -96,6 +99,9 @@ public class Printer {
 
     public String getSetorNovo() { return setorNovo; }
     public void setSetorNovo(String setorNovo) { this.setorNovo = setorNovo; }
+
+    public String getModelo() { return modelo; }
+    public void setModelo(String modelo) { this.modelo = modelo; }
 
     public String getMarcaModelo() { return marcaModelo; }
     public void setMarcaModelo(String marcaModelo) { this.marcaModelo = marcaModelo; }

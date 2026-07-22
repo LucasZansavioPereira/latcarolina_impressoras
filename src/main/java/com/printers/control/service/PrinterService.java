@@ -36,7 +36,10 @@ public class PrinterService {
         if (printer.getCodigo() == null || printer.getCodigo().isBlank()) {
             throw new IllegalArgumentException("O código da impressora é obrigatório");
         }
-        validateUniqueCodigoStatus(printer.getCodigo(), printer.getStatus(), null);
+        if (printer.getModelo() == null || printer.getModelo().isBlank()) {
+            throw new IllegalArgumentException("O modelo da impressora é obrigatório");
+        }
+        validateUniqueCodigoStatus(printer.getCodigo(), printer.getStatus(), printer.getModelo(), null);
         if (printer.getConnectionType() == null) {
             printer.setConnectionType(Printer.ConnectionType.ETHERNET);
         }
@@ -54,14 +57,19 @@ public class PrinterService {
         Printer existing = findById(id);
         String finalCodigo = changes.getCodigo() != null ? changes.getCodigo() : existing.getCodigo();
         Printer.Status finalStatus = changes.getStatus() != null ? changes.getStatus() : existing.getStatus();
+        String finalModelo = changes.getModelo() != null ? changes.getModelo() : existing.getModelo();
 
-        validateUniqueCodigoStatus(finalCodigo, finalStatus, id);
+        if (finalModelo == null || finalModelo.isBlank()) {
+            throw new IllegalArgumentException("O modelo da impressora é obrigatório");
+        }
+        validateUniqueCodigoStatus(finalCodigo, finalStatus, finalModelo, id);
 
         existing.setCodigo(finalCodigo);
         existing.setStatus(finalStatus);
         existing.setProblema(changes.getProblema());
         existing.setSetorAntigo(changes.getSetorAntigo());
         existing.setSetorNovo(changes.getSetorNovo());
+        existing.setModelo(finalModelo);
         existing.setMarcaModelo(changes.getMarcaModelo());
         existing.setIp(changes.getIp());
         existing.setConnectionType(changes.getConnectionType() != null ? changes.getConnectionType() : existing.getConnectionType());
@@ -75,22 +83,27 @@ public class PrinterService {
         return connectivityService.verificarImpressora(savedPrinter);
     }
 
-    private void validateUniqueCodigoStatus(String codigo, Printer.Status status, String currentId) {
-        // BACKUP status allows one duplicate by codigo
+    private void validateUniqueCodigoStatus(String codigo, Printer.Status status, String modelo, String currentId) {
+        // BACKUP status allows only one BACKUP per codigo, regardless of modelo
         if (status == Printer.Status.BACKUP) {
-            // For BACKUP, only check if there's another BACKUP with same codigo
             Optional<Printer> backupWithCodigo = repository.findByCodigoAndStatus(codigo, Printer.Status.BACKUP);
             if (backupWithCodigo.isPresent() && (currentId == null || !backupWithCodigo.get().getId().equals(currentId))) {
                 throw new IllegalArgumentException("Já existe uma impressora BACKUP cadastrada com esse código.");
             }
-        } else {
-            // For other statuses (FUNCIONANDO, QUEBRADA, MANUTENCAO), no duplicates allowed by codigo
-            List<Printer> allWithCodigo = repository.findByCodigo(codigo);
-            boolean hasDuplicate = allWithCodigo.stream()
-                    .anyMatch(p -> currentId == null || !p.getId().equals(currentId));
-            if (hasDuplicate) {
-                throw new IllegalArgumentException("Já existe uma impressora cadastrada com esse código. Apenas impressoras com status BACKUP podem ser duplicadas.");
-            }
+            return;
+        }
+
+        // For non-BACKUP statuses, allow the same codigo and status only when the modelo differs.
+        List<Printer> sameCodeSameStatus = repository.findByCodigo(codigo).stream()
+                .filter(p -> p.getStatus() == status)
+                .toList();
+
+        boolean duplicateModelo = sameCodeSameStatus.stream()
+                .anyMatch(p -> p.getModelo() != null && p.getModelo().equalsIgnoreCase(modelo)
+                        && (currentId == null || !p.getId().equals(currentId)));
+
+        if (duplicateModelo) {
+            throw new IllegalArgumentException("Já existe uma impressora com mesmo nome, status e modelo.");
         }
     }
 
