@@ -12,9 +12,11 @@ import java.util.Optional;
 public class PrinterService {
 
     private final PrinterRepository repository;
+    private final PrinterConnectivityService connectivityService;
 
-    public PrinterService(PrinterRepository repository) {
+    public PrinterService(PrinterRepository repository, PrinterConnectivityService connectivityService) {
         this.repository = repository;
+        this.connectivityService = connectivityService;
     }
 
     public List<Printer> findAll() {
@@ -43,7 +45,9 @@ public class PrinterService {
             printer.setMarcaModelo(null);
             printer.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
         }
-        return repository.save(printer);
+
+        Printer savedPrinter = repository.save(printer);
+        return connectivityService.verificarImpressora(savedPrinter);
     }
 
     public Printer update(String id, Printer changes) {
@@ -66,13 +70,27 @@ public class PrinterService {
             existing.setMarcaModelo(null);
             existing.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
         }
-        return repository.save(existing);
+
+        Printer savedPrinter = repository.save(existing);
+        return connectivityService.verificarImpressora(savedPrinter);
     }
 
     private void validateUniqueCodigoStatus(String codigo, Printer.Status status, String currentId) {
-        Optional<Printer> existing = repository.findByCodigoAndStatus(codigo, status);
-        if (existing.isPresent() && (currentId == null || !existing.get().getId().equals(currentId))) {
-            throw new IllegalArgumentException("Já existe uma impressora cadastrada com esse código e status.");
+        // BACKUP status allows one duplicate by codigo
+        if (status == Printer.Status.BACKUP) {
+            // For BACKUP, only check if there's another BACKUP with same codigo
+            Optional<Printer> backupWithCodigo = repository.findByCodigoAndStatus(codigo, Printer.Status.BACKUP);
+            if (backupWithCodigo.isPresent() && (currentId == null || !backupWithCodigo.get().getId().equals(currentId))) {
+                throw new IllegalArgumentException("Já existe uma impressora BACKUP cadastrada com esse código.");
+            }
+        } else {
+            // For other statuses (FUNCIONANDO, QUEBRADA, MANUTENCAO), no duplicates allowed by codigo
+            List<Printer> allWithCodigo = repository.findByCodigo(codigo);
+            boolean hasDuplicate = allWithCodigo.stream()
+                    .anyMatch(p -> currentId == null || !p.getId().equals(currentId));
+            if (hasDuplicate) {
+                throw new IllegalArgumentException("Já existe uma impressora cadastrada com esse código. Apenas impressoras com status BACKUP podem ser duplicadas.");
+            }
         }
     }
 

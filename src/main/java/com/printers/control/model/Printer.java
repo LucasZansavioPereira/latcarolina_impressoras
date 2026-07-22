@@ -7,12 +7,7 @@ import jakarta.validation.constraints.Pattern;
 import java.time.Instant;
 
 @Entity
-@Table(
-        name = "printers",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_printers_codigo_status", columnNames = {"codigo", "status"})
-        }
-)
+@Table(name = "printers")
 public class Printer {
 
     @Id
