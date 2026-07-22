@@ -263,14 +263,14 @@ async function savePrinter() {
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
-      throw new Error(error.erro || 'Falha ao salvar impressora');
+      throw new Error(error.erro || 'Já existe uma impressora cadastrada com esse código e status.');
     }
 
     closeModal();
     showToast(id ? 'Impressora atualizada com sucesso' : 'Impressora cadastrada com sucesso');
     await loadPrinters();
   } catch (e) {
-    showToast(e.message);
+    showToast(e.message || 'Falha ao salvar impressora');
   } finally {
     btn.disabled = false;
     btn.innerHTML = originalHtml;

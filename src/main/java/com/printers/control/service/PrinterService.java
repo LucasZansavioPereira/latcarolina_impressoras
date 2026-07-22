@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @Service
 public class PrinterService {
@@ -34,6 +34,7 @@ public class PrinterService {
         if (printer.getCodigo() == null || printer.getCodigo().isBlank()) {
             throw new IllegalArgumentException("O código da impressora é obrigatório");
         }
+        validateUniqueCodigoStatus(printer.getCodigo(), printer.getStatus(), null);
         if (printer.getConnectionType() == null) {
             printer.setConnectionType(Printer.ConnectionType.ETHERNET);
         }
@@ -48,21 +49,12 @@ public class PrinterService {
     public Printer update(String id, Printer changes) {
         Printer existing = findById(id);
         String finalCodigo = changes.getCodigo() != null ? changes.getCodigo() : existing.getCodigo();
-        Printer.Status finalStatus = (changes.getStatus() != null) ? changes.getStatus() : existing.getStatus();
+        Printer.Status finalStatus = changes.getStatus() != null ? changes.getStatus() : existing.getStatus();
 
-        // validate codigo uniqueness rule against other printers
-        if (finalStatus != Printer.Status.BACKUP) {
-            List<Printer> others = repository.findByCodigo(finalCodigo).stream()
-                    .filter(p -> !p.getId().equals(id))
-                    .filter(p -> p.getStatus() != Printer.Status.BACKUP)
-                    .collect(Collectors.toList());
-            if (!others.isEmpty()) {
-                throw new IllegalArgumentException("Código já existe. Apenas impressoras não-BACKUP devem ser únicas.");
-            }
-        }
+        validateUniqueCodigoStatus(finalCodigo, finalStatus, id);
 
         existing.setCodigo(finalCodigo);
-        existing.setStatus(changes.getStatus() != null ? changes.getStatus() : existing.getStatus());
+        existing.setStatus(finalStatus);
         existing.setProblema(changes.getProblema());
         existing.setSetorAntigo(changes.getSetorAntigo());
         existing.setSetorNovo(changes.getSetorNovo());
@@ -75,6 +67,13 @@ public class PrinterService {
             existing.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
         }
         return repository.save(existing);
+    }
+
+    private void validateUniqueCodigoStatus(String codigo, Printer.Status status, String currentId) {
+        Optional<Printer> existing = repository.findByCodigoAndStatus(codigo, status);
+        if (existing.isPresent() && (currentId == null || !existing.get().getId().equals(currentId))) {
+            throw new IllegalArgumentException("Já existe uma impressora cadastrada com esse código e status.");
+        }
     }
 
     public void delete(String id) {
