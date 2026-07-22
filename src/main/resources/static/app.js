@@ -189,6 +189,94 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+function getPrinterPayload() {
+  const codigo = document.getElementById('fCodigo').value.trim();
+  const problema = document.getElementById('fProblema').value.trim();
+  const setorAntigo = document.getElementById('fSetorAntigo').value.trim();
+  const setorNovo = document.getElementById('fSetorNovo').value.trim();
+  const marcaModelo = document.getElementById('fMarcaModelo').value.trim();
+  const ip = document.getElementById('fIp').value.trim();
+  const connectionType = getSelectedConnectionType();
+
+  const payload = {
+    codigo,
+    status: selectedStatus,
+    problema,
+    setorAntigo,
+    setorNovo,
+    marcaModelo,
+    connectionType
+  };
+
+  if (connectionType === 'USB') {
+    payload.ip = null;
+    payload.marcaModelo = null;
+  } else {
+    payload.ip = ip;
+    payload.marcaModelo = marcaModelo;
+  }
+
+  return payload;
+}
+
+async function savePrinter() {
+  const id = document.getElementById('editId').value;
+  const payload = getPrinterPayload();
+
+  if (!payload.codigo) {
+    showToast('Digite o nome da impressora');
+    return;
+  }
+
+  if (!payload.setorAntigo || !payload.setorNovo) {
+    showToast('Preencha os campos de localização e setor');
+    return;
+  }
+
+  if (payload.status === 'QUEBRADA' && !payload.problema) {
+    showToast('Descreva o problema para impressoras quebradas');
+    return;
+  }
+
+  if (payload.connectionType === 'ETHERNET') {
+    if (!payload.ip) {
+      showToast('Informe o endereço IP para conexão Ethernet');
+      return;
+    }
+    if (!payload.marcaModelo) {
+      showToast('Informe o endereço MAC para conexão Ethernet');
+      return;
+    }
+  }
+
+  const btn = document.getElementById('btnSave');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i>Salvando...';
+
+  try {
+    const res = await fetch(id ? `${API}/${id}` : API, {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.erro || 'Falha ao salvar impressora');
+    }
+
+    closeModal();
+    showToast(id ? 'Impressora atualizada com sucesso' : 'Impressora cadastrada com sucesso');
+    await loadPrinters();
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
 function showUserScreen() {
   loginScreen.style.display = 'none';
   userScreen.style.display = 'flex';
@@ -552,6 +640,7 @@ function init() {
 
   document.getElementById('btnExport').addEventListener('click', exportToExcel);
   document.getElementById('btnNew').addEventListener('click', () => openModal(null));
+  document.getElementById('btnSave').addEventListener('click', savePrinter);
   document.getElementById('btnClose').addEventListener('click', closeModal);
   document.getElementById('btnCancel').addEventListener('click', closeModal);
   document.getElementById('modalOverlay').addEventListener('click', (e) => {

@@ -31,14 +31,16 @@ public class PrinterService {
         if (printer.getStatus() == null) {
             printer.setStatus(Printer.Status.FUNCIONANDO);
         }
-        validateConnectionFields(printer);
-        if (printer.getStatus() != Printer.Status.BACKUP) {
-            List<Printer> same = repository.findByCodigo(printer.getCodigo()).stream()
-                    .filter(p -> p.getStatus() != Printer.Status.BACKUP)
-                    .toList();
-            if (!same.isEmpty()) {
-                throw new IllegalArgumentException("Código já existe. Apenas impressoras não-BACKUP devem ser únicas.");
-            }
+        if (printer.getCodigo() == null || printer.getCodigo().isBlank()) {
+            throw new IllegalArgumentException("O código da impressora é obrigatório");
+        }
+        if (printer.getConnectionType() == null) {
+            printer.setConnectionType(Printer.ConnectionType.ETHERNET);
+        }
+        if (printer.getConnectionType() == Printer.ConnectionType.USB) {
+            printer.setIp(null);
+            printer.setMarcaModelo(null);
+            printer.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
         }
         return repository.save(printer);
     }
@@ -67,24 +69,12 @@ public class PrinterService {
         existing.setMarcaModelo(changes.getMarcaModelo());
         existing.setIp(changes.getIp());
         existing.setConnectionType(changes.getConnectionType() != null ? changes.getConnectionType() : existing.getConnectionType());
-        validateConnectionFields(existing);
-        return repository.save(existing);
-    }
-
-    private void validateConnectionFields(Printer printer) {
-        if (printer.getConnectionType() == Printer.ConnectionType.ETHERNET) {
-            if (printer.getIp() == null || printer.getIp().isBlank()) {
-                throw new IllegalArgumentException("Para conexão Ethernet, o endereço IP é obrigatório");
-            }
-            if (printer.getMarcaModelo() == null || printer.getMarcaModelo().isBlank()) {
-                throw new IllegalArgumentException("Para conexão Ethernet, o endereço MAC é obrigatório");
-            }
-        } else {
-            // USB: clear network-related fields to avoid confusion
-            printer.setIp(null);
-            printer.setMarcaModelo(null);
-            printer.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
+        if (existing.getConnectionType() == Printer.ConnectionType.USB) {
+            existing.setIp(null);
+            existing.setMarcaModelo(null);
+            existing.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
         }
+        return repository.save(existing);
     }
 
     public void delete(String id) {
