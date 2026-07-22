@@ -24,7 +24,7 @@ public class DatabaseMigration implements CommandLineRunner {
         try (Connection conn = dataSource.getConnection(); Statement st = conn.createStatement()) {
             ensurePrinterTableColumns(conn, st);
             removeCodigoUniqueConstraints(conn, st);
-            clearPrinterData(conn, st);
+            System.out.println("DatabaseMigration: preserving existing printer data");
         } catch (SQLException e) {
             System.err.println("DatabaseMigration: unable to prepare printer schema — " + e.getMessage());
         }
