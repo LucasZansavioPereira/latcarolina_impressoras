@@ -488,19 +488,20 @@ function renderReport() {
   if (!tbody) return;
 
   const search = document.getElementById('reportSearch').value.toLowerCase();
-  const comIp = printers.filter(p => p.ip && p.ip.trim());
+  const printersWithIp = printers.filter(p => p.ip && p.ip.trim());
 
-  const filtered = comIp.filter(p => {
+  const filtered = printers.filter(p => {
     if (!search) return true;
     return (p.codigo || '').toLowerCase().includes(search)
       || ((p.setorAntigo || '') + ' ' + (p.setorNovo || '')).toLowerCase().includes(search)
-      || (p.ip || '').toLowerCase().includes(search);
+      || (p.ip || '').toLowerCase().includes(search)
+      || (p.connectionType || '').toLowerCase().includes(search);
   });
 
-  document.getElementById('repTotal').textContent = comIp.length;
-  document.getElementById('repOnline').textContent = comIp.filter(p => p.connectivityStatus === 'ONLINE').length;
-  document.getElementById('repOffline').textContent = comIp.filter(p => p.connectivityStatus === 'INDISPONIVEL').length;
-  document.getElementById('repPending').textContent = comIp.filter(p => !p.connectivityStatus || p.connectivityStatus === 'NAO_VERIFICADO').length;
+  document.getElementById('repTotal').textContent = printers.length;
+  document.getElementById('repOnline').textContent = printersWithIp.filter(p => p.connectivityStatus === 'ONLINE').length;
+  document.getElementById('repOffline').textContent = printersWithIp.filter(p => p.connectivityStatus === 'INDISPONIVEL').length;
+  document.getElementById('repPending').textContent = printersWithIp.filter(p => !p.connectivityStatus || p.connectivityStatus === 'NAO_VERIFICADO').length;
 
   emptyState.style.display = filtered.length === 0 ? 'block' : 'none';
   tbody.innerHTML = '';
@@ -509,16 +510,16 @@ function renderReport() {
     .slice()
     .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
     .forEach(p => {
-      const conn = connectivityLabel[p.connectivityStatus] || connectivityLabel.NAO_VERIFICADO;
+      const conn = getConnectivityInfo(p) || { text: p.connectionType === 'USB' ? '⚪ Sem IP' : '⚪ Sem IP', cssClass: 'conn-nao-verificado' };
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="rt-codigo">${escapeHtml(p.codigo)}</td>
         <td class="rt-setor">${escapeHtml(p.setorNovo || p.setorAntigo || '-')}</td>
         <td class="rt-conn-type"><span class="conn-type ${p.connectionType === 'USB' ? 'usb' : 'ethernet'}">${p.connectionType === 'USB' ? 'USB' : 'Ethernet'}</span></td>
         <td><span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span></td>
-        <td class="rt-ip">${escapeHtml(p.ip)}</td>
+        <td class="rt-ip">${escapeHtml(p.ip || '-')}</td>
         <td><span class="rt-conn ${conn.cssClass}">${conn.text}</span></td>
-        <td class="rt-checked">${p.lastConnectivityCheck ? formatDateBr(p.lastConnectivityCheck) : 'Nunca verificado'}</td>
+        <td class="rt-checked">${p.lastConnectivityCheck ? formatDateBr(p.lastConnectivityCheck) : (p.connectionType === 'USB' ? 'Não aplicável' : 'Nunca verificado')}</td>
       `;
       tr.addEventListener('click', () => openModal(p));
       tbody.appendChild(tr);
