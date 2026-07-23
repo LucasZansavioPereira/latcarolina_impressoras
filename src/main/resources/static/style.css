@@ -551,7 +551,8 @@ body{
 .user-panel > .panel-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px;}
 .user-panel > .modal-header h2,
 .user-panel > .panel-header h2{font-size:22px;font-weight:700;margin:0;color:var(--text);line-height:1.1;}
-.user-panel > .modal-header .btn-exit-account{margin-top:4px;}
+.user-panel > .modal-header .btn-exit-account,
+.user-panel > .panel-header .btn-exit-account{margin-top:4px;}
 .panel-info{font-size:12px;color:var(--text-secondary);}
 .user-info{margin-bottom:1.5rem;padding:18px 18px;border-radius:16px;background:rgba(244,245,247,0.75);border:1px solid var(--border);}
 .user-info .user-label{display:block;margin-bottom:8px;font-size:13px;font-weight:500;color:var(--text-secondary);}
@@ -714,6 +715,7 @@ body{
 .report-table tbody tr:last-child td{border-bottom:none;}
 .report-table tbody tr:hover{background:var(--bg);cursor:pointer;}
 .report-table .rt-codigo{font-weight:600;}
+.report-table .rt-modelo{color:var(--text-secondary);font-size:12.5px;}
 .report-table .rt-setor{color:var(--text-secondary);font-size:12.5px;}
 .report-table .rt-ip{font-family:'SFMono-Regular', Consolas, monospace;color:var(--text-secondary);}
 .report-table .rt-checked{color:var(--text-tertiary);font-size:12px;}
@@ -728,6 +730,21 @@ body{
 .rt-conn.conn-online{background:var(--ok-bg);color:var(--ok);}
 .rt-conn.conn-indisponivel{background:var(--broken-bg);color:var(--broken);}
 .rt-conn.conn-nao-verificado{background:var(--bg);color:var(--text-tertiary);}
+
+.lockout-alert {
+  background: var(--broken-bg);
+  color: var(--broken);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  line-height: 1.4;
+}
 
 @media (max-width: 800px){
   .sidebar{display:none;}

@@ -17,6 +17,7 @@
 
   <div class="auth-screen login-screen" id="loginScreen">
     <div class="auth-card">
+      <div id="loginLockoutAlert" class="lockout-alert" style="display:none;"></div>
       <!-- <div class="auth-brand">
         <div class="brand-icon emoji-logo">🖨️</div>
         <div>
@@ -43,7 +44,6 @@
       <div class="user-panel user-panel-account">
         <div class="modal-header">
           <h2>Conta atual</h2>
-          <button class="btn-ghost btn-exit-account" id="btnBackToLogin"><i class="ti ti-arrow-left"></i>Voltar</button>
         </div>
         <div class="user-info" style="margin-bottom:1.5rem;">
           <p class="user-label">Usuário atual</p>
@@ -86,6 +86,7 @@
       <div class="user-panel user-panel-list">
         <div class="panel-header">
           <h2>Usuários criados</h2>
+          <button class="btn-ghost btn-exit-account" id="btnBackToLogin"><i class="ti ti-arrow-left"></i>Voltar</button>
         </div>
         <div id="userList" class="user-list"></div>
       </div>
@@ -131,7 +132,7 @@
           <i class="ti ti-printer"></i>Impressoras
         </button>
         <button class="side-nav-item" id="navReport" data-view="report">
-          <i class="ti ti-report-analytics"></i>Relatório das Impressoras
+          <i class="ti ti-report-analytics"></i>Relatório
         </button>
         <button class="side-nav-item" id="btnUserManagementSide">
           <i class="ti ti-user"></i>Conta
@@ -139,7 +140,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <p>Backend Java · Spring Boot</p>
+        <p>Lucas Zansavio Pereira</p>
       </div>
     </aside>
 
@@ -163,7 +164,6 @@
         <div class="topbar-actions">
           <button class="btn-secondary" id="btnCheckAll"><i class="ti ti-refresh"></i>Verificar todos os IPs</button>
           <button class="btn-secondary" id="btnExport"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
-          <button class="btn-secondary" id="btnUserManagementTop"><i class="ti ti-user"></i>Conta</button>
           <button class="btn-primary" id="btnNew"><i class="ti ti-plus"></i>Nova impressora</button>
         </div>
       </header>
@@ -179,10 +179,13 @@
       <section id="reportView" class="view" style="display:none;">
         <header class="report-header">
           <div>
-            <h2>Relatório das Impressoras</h2>
+            <h2>Relatório</h2>
             <p class="report-subtitle">Status operacional e de conectividade de todas as impressoras</p>
           </div>
-          <button class="btn-secondary" id="btnCheckAllReport"><i class="ti ti-refresh"></i>Verificar todos os IPs</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-secondary" id="btnExportReport"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
+            <button class="btn-secondary" id="btnCheckAllReport"><i class="ti ti-refresh"></i>Verificar todos os IPs</button>
+          </div>
         </header>
 
         <div class="report-summary">
@@ -214,6 +217,7 @@
             <thead>
               <tr>
                 <th>Nome</th>
+                <th>Modelo</th>
                 <th>Setor</th>
                 <th>Tipo de conexão</th>
                 <th>Status</th>

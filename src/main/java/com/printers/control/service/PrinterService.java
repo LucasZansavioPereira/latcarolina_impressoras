@@ -47,6 +47,8 @@ public class PrinterService {
             printer.setIp(null);
             printer.setMarcaModelo(null);
             printer.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
+        } else {
+            validateIpAndMac(printer.getIp(), printer.getMarcaModelo());
         }
 
         Printer savedPrinter = repository.save(printer);
@@ -58,6 +60,9 @@ public class PrinterService {
         String finalCodigo = changes.getCodigo() != null ? changes.getCodigo() : existing.getCodigo();
         Printer.Status finalStatus = changes.getStatus() != null ? changes.getStatus() : existing.getStatus();
         String finalModelo = changes.getModelo() != null ? changes.getModelo() : existing.getModelo();
+        Printer.ConnectionType finalConnType = changes.getConnectionType() != null ? changes.getConnectionType() : existing.getConnectionType();
+        String finalIp = changes.getIp() != null ? changes.getIp() : existing.getIp();
+        String finalMac = changes.getMarcaModelo() != null ? changes.getMarcaModelo() : existing.getMarcaModelo();
 
         if (finalModelo == null || finalModelo.isBlank()) {
             throw new IllegalArgumentException("O modelo da impressora é obrigatório");
@@ -70,17 +75,38 @@ public class PrinterService {
         existing.setSetorAntigo(changes.getSetorAntigo());
         existing.setSetorNovo(changes.getSetorNovo());
         existing.setModelo(finalModelo);
-        existing.setMarcaModelo(changes.getMarcaModelo());
-        existing.setIp(changes.getIp());
-        existing.setConnectionType(changes.getConnectionType() != null ? changes.getConnectionType() : existing.getConnectionType());
+        existing.setMarcaModelo(finalMac);
+        existing.setIp(finalIp);
+        existing.setConnectionType(finalConnType);
+
         if (existing.getConnectionType() == Printer.ConnectionType.USB) {
             existing.setIp(null);
             existing.setMarcaModelo(null);
             existing.setConnectivityStatus(Printer.ConnectivityStatus.NAO_VERIFICADO);
+        } else {
+            validateIpAndMac(existing.getIp(), existing.getMarcaModelo());
         }
 
         Printer savedPrinter = repository.save(existing);
         return connectivityService.verificarImpressora(savedPrinter);
+    }
+
+    private static final String IP_REGEX = "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+    private static final String MAC_REGEX = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{12})$";
+
+    private void validateIpAndMac(String ip, String mac) {
+        if (ip == null || ip.isBlank()) {
+            throw new IllegalArgumentException("Informe o endereço IP para conexão Ethernet");
+        }
+        if (!ip.trim().matches(IP_REGEX)) {
+            throw new IllegalArgumentException("Endereço IP inválido. Digite um IP no formato correto (ex: 192.168.1.50).");
+        }
+        if (mac == null || mac.isBlank()) {
+            throw new IllegalArgumentException("Informe o endereço MAC para conexão Ethernet");
+        }
+        if (!mac.trim().matches(MAC_REGEX)) {
+            throw new IllegalArgumentException("Endereço MAC inválido. Digite um MAC no formato correto (ex: AA:BB:CC:DD:EE:FF).");
+        }
     }
 
     private void validateUniqueCodigoStatus(String codigo, Printer.Status status, String modelo, String currentId) {

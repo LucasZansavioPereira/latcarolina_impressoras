@@ -1,4 +1,4 @@
-﻿const API = '/api/printers';
+const API = '/api/printers';
 const AUTH_API = '/api/auth';
 let printers = [];
 let currentStatus = '';
@@ -252,8 +252,16 @@ async function savePrinter() {
       showToast('Informe o endereço IP para conexão Ethernet');
       return;
     }
+    if (!isValidIp(payload.ip)) {
+      showToast('Endereço IP inválido. Digite um IP no formato correto (ex: 192.168.1.50)');
+      return;
+    }
     if (!payload.marcaModelo) {
       showToast('Informe o endereço MAC para conexão Ethernet');
+      return;
+    }
+    if (!isValidMac(payload.marcaModelo)) {
+      showToast('Endereço MAC inválido. Digite um MAC no formato correto (ex: AA:BB:CC:DD:EE:FF)');
       return;
     }
   }
@@ -366,7 +374,91 @@ function completeLogin() {
   loadUsers();
 }
 
+function isValidIp(ip) {
+  if (!ip) return false;
+  const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  return ipRegex.test(ip.trim());
+}
+
+function isValidMac(mac) {
+  if (!mac) return false;
+  const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{12})$/;
+  return macRegex.test(mac.trim());
+}
+
+const LOCKOUT_KEY = 'printer_login_lockout_until';
+const FAILED_ATTEMPTS_KEY = 'printer_login_failed_attempts';
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCKOUT_MS = 10 * 60 * 1000; // 10 minutos
+let lockoutTimerInterval = null;
+
+function checkLoginLockout() {
+  const lockoutUntil = parseInt(localStorage.getItem(LOCKOUT_KEY) || '0', 10);
+  const now = Date.now();
+  const alertEl = document.getElementById('loginLockoutAlert');
+  const btnLogin = document.getElementById('btnLogin');
+
+  if (lockoutUntil > now) {
+    const remainingSeconds = Math.ceil((lockoutUntil - now) / 1000);
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const timeStr = minutes > 0 ? `${minutes} min e ${seconds} s` : `${seconds} s`;
+
+    if (alertEl) {
+      alertEl.style.display = 'flex';
+      alertEl.innerHTML = `<i class="ti ti-lock"></i> Acesso bloqueado por 10 min após 3 tentativas incorretas. Tente em <strong>&nbsp;${timeStr}</strong>.`;
+    }
+    if (btnLogin) btnLogin.disabled = true;
+
+    if (!lockoutTimerInterval) {
+      lockoutTimerInterval = setInterval(checkLoginLockout, 1000);
+    }
+    return true;
+  } else {
+    if (lockoutUntil > 0) {
+      localStorage.removeItem(LOCKOUT_KEY);
+      localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+    }
+    if (alertEl) {
+      alertEl.style.display = 'none';
+      alertEl.innerHTML = '';
+    }
+    if (btnLogin) btnLogin.disabled = false;
+    if (lockoutTimerInterval) {
+      clearInterval(lockoutTimerInterval);
+      lockoutTimerInterval = null;
+    }
+    return false;
+  }
+}
+
+function handleLoginFailure(errorMessage) {
+  let attempts = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY) || '0', 10) + 1;
+  localStorage.setItem(FAILED_ATTEMPTS_KEY, attempts.toString());
+
+  if (attempts >= MAX_LOGIN_ATTEMPTS) {
+    const lockoutUntil = Date.now() + LOCKOUT_MS;
+    localStorage.setItem(LOCKOUT_KEY, lockoutUntil.toString());
+    checkLoginLockout();
+    showToast('Acesso bloqueado por 10 minutos devido a 3 tentativas incorretas.');
+  } else {
+    checkLoginLockout();
+    showToast(errorMessage || `Usuário ou senha incorretos (${attempts}/${MAX_LOGIN_ATTEMPTS}).`);
+  }
+}
+
+function clearLoginLockout() {
+  localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+  localStorage.removeItem(LOCKOUT_KEY);
+  checkLoginLockout();
+}
+
 async function login() {
+  if (checkLoginLockout()) {
+    showToast('Acesso bloqueado temporariamente por 10 minutos.');
+    return;
+  }
+
   const username = loginUsername.value.trim();
   const password = loginPassword.value.trim();
   if (!username || !password) {
@@ -382,10 +474,12 @@ async function login() {
     });
     if (!res.ok) {
       const error = await res.json();
-      throw new Error(error.erro || 'Falha ao fazer login');
+      handleLoginFailure(error.erro);
+      return;
     }
     const data = await res.json();
     loggedUsername = data.username;
+    clearLoginLockout();
     completeLogin();
   } catch (e) {
     showToast(e.message);
@@ -431,8 +525,8 @@ function addSheet(wb, sheetName, list) {
   const rows = list.map(printerToRow);
   const ws = rows.length
     ? XLSX.utils.json_to_sheet(rows)
-    : XLSX.utils.aoa_to_sheet([['Nome','Status','Problema / Observação','Localização','Setor','Endereço MAC','Tipo de conexão','Endereço IP','Conectividade','Atualizado em']]);
-  ws['!cols'] = autoSizeColumns(rows.length ? rows : [{ 'Nome': '', 'Status': '', 'Problema / Observação': '', 'Localização': '', 'Setor': '', 'Endereço MAC': '', 'Tipo de conexão': '', 'Endereço IP': '', 'Conectividade': '', 'Atualizado em': '' }]);
+    : XLSX.utils.aoa_to_sheet([['Nome','Modelo','Status','Problema / Observação','Localização','Setor','Endereço MAC','Tipo de conexão','Endereço IP','Conectividade','Atualizado em']]);
+  ws['!cols'] = autoSizeColumns(rows.length ? rows : [{ 'Nome': '', 'Modelo': '', 'Status': '', 'Problema / Observação': '', 'Localização': '', 'Setor': '', 'Endereço MAC': '', 'Tipo de conexão': '', 'Endereço IP': '', 'Conectividade': '', 'Atualizado em': '' }]);
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
 }
 
@@ -503,6 +597,7 @@ function renderReport() {
   const filtered = printers.filter(p => {
     if (!search) return true;
     return (p.codigo || '').toLowerCase().includes(search)
+      || (p.modelo || '').toLowerCase().includes(search)
       || ((p.setorAntigo || '') + ' ' + (p.setorNovo || '')).toLowerCase().includes(search)
       || (p.ip || '').toLowerCase().includes(search)
       || (p.connectionType || '').toLowerCase().includes(search);
@@ -524,6 +619,7 @@ function renderReport() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="rt-codigo">${escapeHtml(p.codigo)}</td>
+        <td class="rt-modelo">${escapeHtml(p.modelo || '-')}</td>
         <td class="rt-setor">${escapeHtml(p.setorNovo || p.setorAntigo || '-')}</td>
         <td class="rt-conn-type"><span class="conn-type ${p.connectionType === 'USB' ? 'usb' : 'ethernet'}">${p.connectionType === 'USB' ? 'USB' : 'Ethernet'}</span></td>
         <td><span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span></td>
@@ -564,6 +660,7 @@ function init() {
   }
 
   document.getElementById('btnLogin').addEventListener('click', login);
+  checkLoginLockout();
   if (userManagementTopButton) {
     userManagementTopButton.addEventListener('click', showUserScreen);
   }
@@ -650,6 +747,8 @@ function init() {
   });
 
   document.getElementById('btnExport').addEventListener('click', exportToExcel);
+  const btnExportReport = document.getElementById('btnExportReport');
+  if (btnExportReport) btnExportReport.addEventListener('click', exportToExcel);
   document.getElementById('btnNew').addEventListener('click', () => openModal(null));
   document.getElementById('btnSave').addEventListener('click', savePrinter);
   document.getElementById('btnClose').addEventListener('click', closeModal);
