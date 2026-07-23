@@ -113,9 +113,14 @@ public class PrinterAuditLoggerService {
     }
 
     private void writeLine(String content) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(LOG_FILE.toFile(), true))) {
-            bw.write(content);
-            bw.newLine();
+        try {
+            if (!Files.exists(LOG_FILE)) {
+                initLogFile();
+            }
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(LOG_FILE.toFile(), true))) {
+                bw.write(content);
+                bw.newLine();
+            }
         } catch (IOException e) {
             log.error("Erro ao escrever no arquivo de log de auditoria: {}", e.getMessage(), e);
         }

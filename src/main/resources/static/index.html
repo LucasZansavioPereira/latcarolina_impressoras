@@ -27,11 +27,11 @@
       </div> -->
       <div class="form-group">
         <label>Usuário</label>
-        <input id="loginUsername" type="text" placeholder="Digite seu usuário" />
+        <input id="loginUsername" type="text" autocomplete="username" placeholder="Digite seu usuário" />
       </div>
       <div class="form-group">
         <label>Senha</label>
-        <input id="loginPassword" type="password" placeholder="Digite sua senha" />
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha" />
       </div>
       <div class="auth-actions">
         <button class="btn-primary" id="btnLogin"><i class="ti ti-lock"></i>Entrar</button>
@@ -41,8 +41,9 @@
 
   <div class="auth-screen user-screen" id="userScreen" style="display:none;">
     <div class="user-screen-wrapper">
-      <div class="user-screen-top">
+      <div class="user-screen-top" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
         <button class="btn-ghost btn-exit-account" id="btnBackToLogin">Voltar</button>
+        <button class="btn-danger-small" id="btnLogout" style="height:40px; padding:0 16px; border-radius:12px; font-weight:600;"><i class="ti ti-logout"></i>Sair da conta</button>
       </div>
 
       <div class="user-panel-grid">
@@ -115,17 +116,25 @@
           <span class="stat-label">Total</span>
           <span class="stat-value" id="statTotal">0</span>
         </div>
-        <div class="stat-card ok">
-          <span class="stat-label">Funcionando</span>
-          <span class="stat-value" id="statOk">0</span>
+        <div class="stat-card ip-online">
+          <span class="stat-label">IP Online</span>
+          <span class="stat-value" id="statIpOnline">0</span>
         </div>
-        <div class="stat-card broken">
-          <span class="stat-label">Quebradas</span>
-          <span class="stat-value" id="statBroken">0</span>
+        <div class="stat-card ip-offline">
+          <span class="stat-label">IP Offline</span>
+          <span class="stat-value" id="statIpOffline">0</span>
+        </div>
+        <div class="stat-card usb">
+          <span class="stat-label">USB</span>
+          <span class="stat-value" id="statUsb">0</span>
         </div>
         <div class="stat-card maint">
           <span class="stat-label">Manutenção</span>
           <span class="stat-value" id="statMaint">0</span>
+        </div>
+        <div class="stat-card broken">
+          <span class="stat-label">Quebradas</span>
+          <span class="stat-value" id="statBroken">0</span>
         </div>
         <div class="stat-card backup">
           <span class="stat-label">Backup</span>
@@ -156,16 +165,16 @@
         <div class="topbar-top">
           <div class="search-wrap">
             <i class="ti ti-search"></i>
-            <input id="search" type="text" placeholder="Buscar por nome, setor ou problema..." />
+            <input id="search" type="text" placeholder="Buscar por nome, modelo, setor, IP, MAC ou problema..." />
           </div>
           <div class="filters">
             <button class="chip active" data-status="">Todas</button>
-            <button class="chip" data-status="FUNCIONANDO">Funcionando</button>
-            <button class="chip" data-status="QUEBRADA">Quebradas</button>
-            <button class="chip" data-status="MANUTENCAO">Manutenção</button>
-            <button class="chip" data-status="BACKUP">Backup</button>
             <button class="chip chip-online" data-status="IP_ONLINE"><i class="ti ti-wifi"></i>IP Online</button>
             <button class="chip chip-offline" data-status="IP_OFFLINE"><i class="ti ti-wifi-off"></i>IP Offline</button>
+            <button class="chip" data-status="USB">USB</button>
+            <button class="chip" data-status="MANUTENCAO">Manutenção</button>
+            <button class="chip" data-status="QUEBRADA">Quebradas</button>
+            <button class="chip" data-status="BACKUP">Backup</button>
           </div>
         </div>
         <div class="topbar-actions">
@@ -265,9 +274,9 @@
       </div>
 
       <div class="form-group">
-        <label>Status <span class="req">*</span> </label>
+        <label>Status</label>
         <div class="status-select" id="fStatusGroup">
-          <button type="button" class="status-opt ok" data-value="FUNCIONANDO">Funcionando</button>
+          <button type="button" class="status-opt ok" data-value="FUNCIONANDO">Normal</button>
           <button type="button" class="status-opt broken" data-value="QUEBRADA">Quebrada</button>
           <button type="button" class="status-opt maint" data-value="MANUTENCAO">Manutenção</button>
           <button type="button" class="status-opt backup" data-value="BACKUP">Backup</button>

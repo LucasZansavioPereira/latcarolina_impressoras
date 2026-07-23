@@ -52,27 +52,43 @@ function render() {
   const filtered = printers.filter(p => {
     const matchesSearch = !search ||
       (p.codigo || '').toLowerCase().includes(search) ||
-      ((p.setorAntigo || '') + ' ' + (p.setorNovo || '')).toLowerCase().includes(search) ||
-      (p.problema || '').toLowerCase().includes(search);
+      (p.modelo || '').toLowerCase().includes(search) ||
+      (p.setorAntigo || '').toLowerCase().includes(search) ||
+      (p.setorNovo || '').toLowerCase().includes(search) ||
+      (p.ip || '').toLowerCase().includes(search) ||
+      (p.marcaModelo || '').toLowerCase().includes(search) ||
+      (p.problema || '').toLowerCase().includes(search) ||
+      (p.connectionType || '').toLowerCase().includes(search) ||
+      (statusLabel[p.status] || '').toLowerCase().includes(search);
     const isOfflineEthernet = p.connectionType !== 'USB' && p.connectivityStatus === 'INDISPONIVEL';
     let matchesStatus = true;
     if (currentStatus === 'IP_OFFLINE') {
       matchesStatus = isOfflineEthernet;
     } else if (currentStatus === 'IP_ONLINE') {
       matchesStatus = p.connectionType !== 'USB' && p.connectivityStatus === 'ONLINE';
-    } else if (currentStatus === 'FUNCIONANDO') {
-      matchesStatus = p.status === 'FUNCIONANDO' && !isOfflineEthernet;
+    } else if (currentStatus === 'USB') {
+      matchesStatus = p.connectionType === 'USB';
     } else if (currentStatus) {
       matchesStatus = p.status === currentStatus;
     }
     return matchesSearch && matchesStatus;
   });
 
-  document.getElementById('statTotal').textContent = printers.length;
-  document.getElementById('statOk').textContent = printers.filter(p => p.status === 'FUNCIONANDO' && !(p.connectionType !== 'USB' && p.connectivityStatus === 'INDISPONIVEL')).length;
-  document.getElementById('statBroken').textContent = printers.filter(p => p.status === 'QUEBRADA').length;
-  document.getElementById('statMaint').textContent = printers.filter(p => p.status === 'MANUTENCAO').length;
-  document.getElementById('statBackup').textContent = printers.filter(p => p.status === 'BACKUP').length;
+  const elTotal = document.getElementById('statTotal');
+  const elIpOnline = document.getElementById('statIpOnline');
+  const elIpOffline = document.getElementById('statIpOffline');
+  const elUsb = document.getElementById('statUsb');
+  const elMaint = document.getElementById('statMaint');
+  const elBroken = document.getElementById('statBroken');
+  const elBackup = document.getElementById('statBackup');
+
+  if (elTotal) elTotal.textContent = printers.length;
+  if (elIpOnline) elIpOnline.textContent = printers.filter(p => p.connectionType !== 'USB' && p.connectivityStatus === 'ONLINE').length;
+  if (elIpOffline) elIpOffline.textContent = printers.filter(p => p.connectionType !== 'USB' && p.connectivityStatus === 'INDISPONIVEL').length;
+  if (elUsb) elUsb.textContent = printers.filter(p => p.connectionType === 'USB').length;
+  if (elMaint) elMaint.textContent = printers.filter(p => p.status === 'MANUTENCAO').length;
+  if (elBroken) elBroken.textContent = printers.filter(p => p.status === 'QUEBRADA').length;
+  if (elBackup) elBackup.textContent = printers.filter(p => p.status === 'BACKUP').length;
 
   document.getElementById('emptyState').style.display = filtered.length === 0 ? 'block' : 'none';
   grid.innerHTML = '';
@@ -86,12 +102,14 @@ function render() {
     const conn = getConnectivityInfo(p);
     card.innerHTML = `
       <div class="card-top">
-        <span class="card-codigo">${escapeHtml(p.codigo)}</span>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div class="card-title-row">
+          <span class="card-codigo">${escapeHtml(p.codigo)}</span>
           <button type="button" class="btn-card-qr" title="Gerar Etiqueta"><i class="ti ti-tag"></i></button>
+        </div>
+        <div class="card-badges-row">
           ${replaceFuncionandoBadge
             ? `<span class="badge QUEBRADA"><i class="ti ti-wifi-off" style="margin-right:3px;"></i>IP Indisponível</span>`
-            : `<span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span>`
+            : (p.status !== 'FUNCIONANDO' ? `<span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span>` : '')
           }
           <span class="conn-type ${p.connectionType === 'USB' ? 'usb' : 'ethernet'}">${p.connectionType === 'USB' ? 'USB' : 'Ethernet'}</span>
         </div>
@@ -99,9 +117,11 @@ function render() {
       ${(!replaceFuncionandoBadge && conn) ? `<p class="card-connectivity ${conn.cssClass}">${conn.text}</p>` : ''}
       <p class="card-problema">${escapeHtml(p.problema) || 'Sem observações'}</p>
       <div class="card-meta">
-        ${(p.setorAntigo || p.setorNovo) ? `<span><i class="ti ti-map-pin"></i>${escapeHtml(p.setorAntigo || '-')} → ${escapeHtml(p.setorNovo || '-')}</span>` : ''}
-        ${p.modelo ? `<span><i class="ti ti-tag"></i>${escapeHtml(p.modelo)}</span>` : ''}
-        ${p.marcaModelo ? `<span><i class="ti ti-chip"></i>${escapeHtml(p.marcaModelo)}</span>` : ''}
+        <div class="card-meta-row">
+          ${(p.setorAntigo || p.setorNovo) ? `<span class="meta-setor"><i class="ti ti-map-pin"></i>${escapeHtml(p.setorAntigo || '-')} → ${escapeHtml(p.setorNovo || '-')}</span>` : ''}
+          ${p.modelo ? `<span class="meta-modelo"><i class="ti ti-tag"></i>${escapeHtml(p.modelo)}</span>` : ''}
+        </div>
+        ${p.marcaModelo ? `<div class="card-meta-mac"><i class="ti ti-chip"></i><code>${escapeHtml(p.marcaModelo)}</code></div>` : ''}
       </div>
     `;
     const qrBtn = card.querySelector('.btn-card-qr');
@@ -392,6 +412,9 @@ function showAppScreen() {
 }
 
 function completeLogin() {
+  if (loggedUsername) {
+    localStorage.setItem('logged_printer_username', loggedUsername);
+  }
   loginScreen.style.display = 'none';
   userScreen.style.display = 'none';
   appElement.classList.remove('hidden');
@@ -401,6 +424,15 @@ function completeLogin() {
   loginPassword.value = '';
   loadPrinters();
   loadUsers();
+}
+
+function logout() {
+  localStorage.removeItem('logged_printer_username');
+  loggedUsername = null;
+  appElement.classList.add('hidden');
+  userScreen.style.display = 'none';
+  loginScreen.style.display = 'flex';
+  showToast('Sessão encerrada com sucesso');
 }
 
 function isValidIp(ip) {
@@ -656,7 +688,10 @@ function renderReport() {
         <td>
           ${replaceFuncionandoBadge
             ? `<span class="badge QUEBRADA"><i class="ti ti-wifi-off" style="margin-right:3px;"></i>Sem Comunicação</span>`
-            : `<span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span>`
+            : (p.status !== 'FUNCIONANDO'
+                ? `<span class="badge ${p.status}">${statusLabel[p.status] || p.status}</span>`
+                : `<span class="badge" style="background:var(--bg);color:var(--text-secondary);border:1px solid var(--border);">Normal</span>`
+              )
           }
         </td>
         <td class="rt-ip">${escapeHtml(p.ip || '-')}</td>
@@ -922,11 +957,24 @@ function closeQrModal() {
     if (e.target.id === 'qrModalOverlay') closeQrModal();
   });
 
+  const btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', logout);
+  }
+
   document.getElementById('navPrinters').addEventListener('click', () => switchView('main'));
   document.getElementById('navReport').addEventListener('click', () => switchView('report'));
   document.getElementById('reportSearch').addEventListener('input', renderReport);
 
-  loadPrinters();
+  const savedUsername = localStorage.getItem('logged_printer_username');
+  if (savedUsername) {
+    loggedUsername = savedUsername;
+    completeLogin();
+  } else {
+    loginScreen.style.display = 'flex';
+    userScreen.style.display = 'none';
+    appElement.classList.add('hidden');
+  }
 }
 
 window.addEventListener('DOMContentLoaded', init);

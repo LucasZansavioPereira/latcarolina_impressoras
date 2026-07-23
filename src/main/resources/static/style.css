@@ -158,6 +158,9 @@ body{
 .stat-label{font-size:12px;color:#a3a7b5;}
 .stat-value{font-size:18px;font-weight:600;}
 .stat-card.ok .stat-value{color:#4ade94;}
+.stat-card.ip-online .stat-value{color:#4ade94;}
+.stat-card.ip-offline .stat-value{color:#f08075;}
+.stat-card.usb .stat-value{color:#a855f7;}
 .stat-card.broken .stat-value{color:#f08075;}
 .stat-card.maint .stat-value{color:#f3bd5a;}
 .stat-card.backup .stat-value{color:var(--backup);}
@@ -369,10 +372,33 @@ body{
 .card.BACKUP{border-left-color:var(--backup);}
 
 .card-top{
-  display:flex;justify-content:space-between;align-items:flex-start;
-  margin-bottom:10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-bottom:12px;
 }
-.card-codigo{font-weight:600;font-size:14.5px;word-break:break-all;}
+.card-title-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:8px;
+  width:100%;
+}
+.card-codigo{
+  font-weight:700;
+  font-size:15px;
+  color:var(--text);
+  word-break:normal;
+  overflow-wrap:break-word;
+  line-height:1.35;
+  flex:1;
+}
+.card-badges-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
 .badge{
   font-size:11px;
   font-weight:600;
@@ -380,7 +406,6 @@ body{
   border-radius:999px;
   white-space:nowrap;
   flex-shrink:0;
-  margin-left:8px;
 }
 .badge.FUNCIONANDO{background:var(--ok-bg);color:var(--ok);} 
 .badge.QUEBRADA{background:var(--broken-bg);color:var(--broken);} 
@@ -399,11 +424,39 @@ body{
 }
 .card-meta{
   display:flex;
-  gap:12px;
+  flex-direction:column;
+  gap:6px;
   font-size:12px;
   color:var(--text-tertiary);
+  margin-top:auto;
+  padding-top:8px;
+  border-top:1px dashed var(--border);
 }
-.card-meta span{display:flex;align-items:center;gap:4px;}
+.card-meta-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  align-items:start;
+}
+.card-meta span{
+  display:flex;
+  align-items:flex-start;
+  gap:4px;
+  min-width:0;
+  word-break:break-word;
+}
+.card-meta-mac{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-size:11.5px;
+  color:var(--text-tertiary);
+  word-break:break-all;
+}
+.card-meta-mac code{
+  font-family:inherit;
+  letter-spacing:0.3px;
+}
 
 .card-connectivity{
   display:flex;
