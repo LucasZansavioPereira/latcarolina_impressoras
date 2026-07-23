@@ -8,9 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -107,12 +104,9 @@ public class PrinterConnectivityService {
                 String actualMac = lookupMacForIpWithRetry(ip, 2, 300);
                 if (actualMac != null && !actualMac.isBlank()) {
                     if (!normalizeMac(actualMac).equals(normalizeMac(expectedMac))) {
-                        // Treat MAC mismatch as IP indisponível per user request
+                        log.warn("Divergência de MAC para IP {}: esperado {}, encontrado {}", ip, expectedMac, actualMac);
                         novoStatus = Printer.ConnectivityStatus.INDISPONIVEL;
                     }
-                } else {
-                    // If we couldn't read the MAC from ARP, treat as indisponível to be safe
-                    novoStatus = Printer.ConnectivityStatus.INDISPONIVEL;
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -194,14 +188,44 @@ public class PrinterConnectivityService {
     }
 
     private boolean testarConectividade(String ip) {
+        return pingCmd(ip);
+    }
+
+    private boolean pingCmd(String ip) {
         try {
-            InetAddress address = InetAddress.getByName(ip);
-            return address.isReachable(TIMEOUT_MS);
-        } catch (UnknownHostException e) {
-            log.warn("IP inválido ou não resolvido para impressora: {}", ip);
-            return false;
-        } catch (IOException e) {
-            log.warn("Falha ao verificar conectividade do IP {}: {}", ip, e.getMessage());
+            String os = System.getProperty("os.name").toLowerCase();
+            ProcessBuilder pb;
+            if (os.contains("win")) {
+                pb = new ProcessBuilder("ping", "-n", "1", "-w", "2000", ip);
+            } else {
+                pb = new ProcessBuilder("ping", "-c", "1", "-W", "2", ip);
+            }
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            StringBuilder output = new StringBuilder();
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            boolean finished = process.waitFor(4, java.util.concurrent.TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                log.warn("Ping para {} expirou (timeout)", ip);
+                return false;
+            }
+
+            String outStr = output.toString().toLowerCase();
+            boolean hasTtl = outStr.contains("ttl=");
+            boolean ok = (process.exitValue() == 0) && hasTtl;
+
+            log.info("Ping para {}: {} (exit={}, hasTtl={})", ip, ok ? "ONLINE" : "OFFLINE", process.exitValue(), hasTtl);
+            return ok;
+        } catch (Exception e) {
+            log.warn("Erro ao executar ping para {}: {}", ip, e.getMessage());
             return false;
         }
     }

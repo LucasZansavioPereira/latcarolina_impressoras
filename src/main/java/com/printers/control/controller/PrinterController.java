@@ -36,19 +36,23 @@ public class PrinterController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Printer create(@Valid @RequestBody Printer printer) {
-        return service.create(printer);
+    public Printer create(@Valid @RequestBody Printer printer,
+                         @RequestHeader(value = "X-User-Name", required = false) String username) {
+        return service.create(printer, username);
     }
 
     @PutMapping("/{id}")
-    public Printer update(@PathVariable String id, @Valid @RequestBody Printer printer) {
-        return service.update(id, printer);
+    public Printer update(@PathVariable String id,
+                         @Valid @RequestBody Printer printer,
+                         @RequestHeader(value = "X-User-Name", required = false) String username) {
+        return service.update(id, printer, username);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String id) {
-        service.delete(id);
+    public void delete(@PathVariable String id,
+                       @RequestHeader(value = "X-User-Name", required = false) String username) {
+        service.delete(id, username);
     }
 
     /**

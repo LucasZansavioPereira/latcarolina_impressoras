@@ -40,55 +40,63 @@
   </div>
 
   <div class="auth-screen user-screen" id="userScreen" style="display:none;">
-    <div class="auth-card user-panel-grid" style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1fr) minmax(360px,1.2fr);gap:1.5rem;align-items:start;width:min(100%,1160px);max-width:1160px;">
-      <div class="user-panel user-panel-account">
-        <div class="modal-header">
-          <h2>Conta atual</h2>
-        </div>
-        <div class="user-info" style="margin-bottom:1.5rem;">
-          <p class="user-label">Usuário atual</p>
-          <h3 id="currentUsername" class="user-name">administrador</h3>
-        </div>
-        <div class="form-group">
-          <label>Nome de usuário atual</label>
-          <input id="editUsernameCurrent" type="text" disabled />
-        </div>
-        <div class="form-group">
-          <label>Senha atual</label>
-          <input id="editCurrentPassword" type="password" placeholder="Digite sua senha atual" />
-        </div>
-        <div class="form-group">
-          <label>Nova senha</label>
-          <input id="editNewPassword" type="password" placeholder="Digite nova senha" />
-        </div>
-        <div class="auth-actions auth-actions-vertical">
-          <button class="btn-primary" id="btnSaveUser"><i class="ti ti-check"></i>Salvar alterações</button>
-        </div>
+    <div class="user-screen-wrapper">
+      <div class="user-screen-top">
+        <button class="btn-ghost btn-exit-account" id="btnBackToLogin">Voltar</button>
       </div>
 
-      <div class="user-panel user-panel-create">
-        <div class="modal-header">
-          <h2>Criar conta</h2>
+      <div class="user-panel-grid">
+        <!-- Bloco 1: Conta Atual -->
+        <div class="user-panel user-panel-account">
+          <div class="panel-header">
+            <h2>Conta atual</h2>
+          </div>
+          <div class="user-info">
+            <p class="user-label">Usuário atual</p>
+            <h3 id="currentUsername" class="user-name">administrador</h3>
+          </div>
+          <div class="form-group">
+            <label>Nome de usuário atual</label>
+            <input id="editUsernameCurrent" type="text" disabled />
+          </div>
+          <div class="form-group">
+            <label>Senha atual</label>
+            <input id="editCurrentPassword" type="password" placeholder="Digite sua senha atual" />
+          </div>
+          <div class="form-group">
+            <label>Nova senha</label>
+            <input id="editNewPassword" type="password" placeholder="Digite nova senha" />
+          </div>
+          <div class="auth-actions auth-actions-vertical">
+            <button class="btn-primary" id="btnSaveUser"><i class="ti ti-check"></i>Salvar alterações</button>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Novo usuário</label>
-          <input id="newUserUsername" type="text" placeholder="Digite o usuário" />
-        </div>
-        <div class="form-group">
-          <label>Nova senha</label>
-          <input id="newUserPassword" type="password" placeholder="Digite a senha" />
-        </div>
-        <div class="auth-actions auth-actions-vertical">
-          <button class="btn-secondary" id="btnCreateUser"><i class="ti ti-user-plus"></i>Criar novo usuário</button>
-        </div>
-      </div>
 
-      <div class="user-panel user-panel-list">
-        <div class="panel-header">
-          <h2>Usuários criados</h2>
-          <button class="btn-ghost btn-exit-account" id="btnBackToLogin"><i class="ti ti-arrow-left"></i>Voltar</button>
+        <!-- Bloco 2: Criar Conta -->
+        <div class="user-panel user-panel-create">
+          <div class="panel-header">
+            <h2>Criar conta</h2>
+          </div>
+          <div class="form-group">
+            <label>Novo usuário</label>
+            <input id="newUserUsername" type="text" placeholder="Digite o usuário" />
+          </div>
+          <div class="form-group">
+            <label>Nova senha</label>
+            <input id="newUserPassword" type="password" placeholder="Digite a senha" />
+          </div>
+          <div class="auth-actions auth-actions-vertical">
+            <button class="btn-secondary" id="btnCreateUser"><i class="ti ti-user-plus"></i>Criar novo usuário</button>
+          </div>
         </div>
-        <div id="userList" class="user-list"></div>
+
+        <!-- Bloco 3: Usuários Criados -->
+        <div class="user-panel user-panel-list">
+          <div class="panel-header">
+            <h2>Usuários criados</h2>
+          </div>
+          <div id="userList" class="user-list"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -96,10 +104,8 @@
   <div class="app hidden">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-icon emoji-logo">🖨️</div>
         <div>
-          <h1>Laticínios Carolina
-          </h1>
+          <h1>Laticínios Carolina</h1>
           <p>Gestão de impressoras</p>
         </div>
       </div>
@@ -158,6 +164,7 @@
             <button class="chip" data-status="QUEBRADA">Quebradas</button>
             <button class="chip" data-status="MANUTENCAO">Manutenção</button>
             <button class="chip" data-status="BACKUP">Backup</button>
+            <button class="chip chip-online" data-status="IP_ONLINE"><i class="ti ti-wifi"></i>IP Online</button>
             <button class="chip chip-offline" data-status="IP_OFFLINE"><i class="ti ti-wifi-off"></i>IP Offline</button>
           </div>
         </div>
@@ -304,19 +311,43 @@
       <div class="form-group conn-info" id="connInfo" style="display:none;">
         <label>Conectividade de rede</label>
         <div class="conn-info-row">
-          <span id="connBadge" class="conn-badge">—</span>
-          <span id="connChecked" class="conn-checked"></span>
+          <div class="conn-info-left">
+            <span id="connBadge" class="conn-badge">—</span>
+            <span id="connChecked" class="conn-checked"></span>
+          </div>
           <button type="button" class="btn-ghost btn-check-now" id="btnCheckNow"><i class="ti ti-refresh"></i>Verificar agora</button>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-danger-ghost" id="btnDelete" style="display:none;"><i
-            class="ti ti-trash"></i>Excluir</button>
-        <div class="modal-actions">
-          <button class="btn-ghost" id="btnCancel">Cancelar</button>
-          <button class="btn-primary" id="btnSave"><i class="ti ti-check"></i>Salvar</button>
+        <button class="btn-danger-ghost" id="btnDelete" style="display:none;"><i class="ti ti-trash"></i>Excluir</button>
+        <button type="button" class="btn-secondary" id="btnQrCode" style="display:none;"><i class="ti ti-tag"></i>Gerar Etiqueta</button>
+        <button type="button" class="btn-ghost" id="btnCancel">Cancelar</button>
+        <button type="button" class="btn-primary" id="btnSave"><i class="ti ti-check"></i>Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="qrModalOverlay">
+    <div class="modal qr-modal-card">
+      <div class="modal-header">
+        <h2>Etiqueta da Impressora</h2>
+        <button class="icon-btn" id="btnQrClose"><i class="ti ti-x"></i></button>
+      </div>
+
+      <div class="qr-label-preview" id="qrPrintArea">
+        <div class="qr-info-wrap">
+          <h3><span id="qrNomeTag">-</span> <span id="qrStatusBadge" class="badge backup" style="display:none;margin-left:8px;vertical-align:middle;font-size:12px;">BACKUP</span></h3>
+          <div class="qr-info-row"><strong>Modelo:</strong> <span id="qrModeloTag">-</span></div>
+          <div class="qr-info-row"><strong>Endereço IP:</strong> <span id="qrIpTag">-</span></div>
+          <div class="qr-info-row"><strong>Endereço MAC:</strong> <span id="qrMacTag">-</span></div>
+          <div class="qr-info-row"><strong>Setor:</strong> <span id="qrSetorTag">-</span></div>
         </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top:1.5rem;">
+        <button class="btn-ghost" id="btnQrCancel">Fechar</button>
+        <button class="btn-primary" id="btnPrintQr"><i class="ti ti-printer"></i>Imprimir Etiqueta</button>
       </div>
     </div>
   </div>

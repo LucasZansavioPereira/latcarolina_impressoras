@@ -13,10 +13,12 @@ public class PrinterService {
 
     private final PrinterRepository repository;
     private final PrinterConnectivityService connectivityService;
+    private final PrinterAuditLoggerService auditLoggerService;
 
-    public PrinterService(PrinterRepository repository, PrinterConnectivityService connectivityService) {
+    public PrinterService(PrinterRepository repository, PrinterConnectivityService connectivityService, PrinterAuditLoggerService auditLoggerService) {
         this.repository = repository;
         this.connectivityService = connectivityService;
+        this.auditLoggerService = auditLoggerService;
     }
 
     public List<Printer> findAll() {
@@ -29,6 +31,10 @@ public class PrinterService {
     }
 
     public Printer create(Printer printer) {
+        return create(printer, null);
+    }
+
+    public Printer create(Printer printer, String username) {
         printer.setId(null);
         if (printer.getStatus() == null) {
             printer.setStatus(Printer.Status.FUNCIONANDO);
@@ -52,11 +58,28 @@ public class PrinterService {
         }
 
         Printer savedPrinter = repository.save(printer);
-        return connectivityService.verificarImpressora(savedPrinter);
+        Printer verifiedPrinter = connectivityService.verificarImpressora(savedPrinter);
+        auditLoggerService.logCreate(username, verifiedPrinter);
+        return verifiedPrinter;
     }
 
     public Printer update(String id, Printer changes) {
+        return update(id, changes, null);
+    }
+
+    public Printer update(String id, Printer changes, String username) {
         Printer existing = findById(id);
+        Printer existingCopy = new Printer();
+        existingCopy.setCodigo(existing.getCodigo());
+        existingCopy.setModelo(existing.getModelo());
+        existingCopy.setStatus(existing.getStatus());
+        existingCopy.setProblema(existing.getProblema());
+        existingCopy.setSetorAntigo(existing.getSetorAntigo());
+        existingCopy.setSetorNovo(existing.getSetorNovo());
+        existingCopy.setIp(existing.getIp());
+        existingCopy.setMarcaModelo(existing.getMarcaModelo());
+        existingCopy.setConnectionType(existing.getConnectionType());
+
         String finalCodigo = changes.getCodigo() != null ? changes.getCodigo() : existing.getCodigo();
         Printer.Status finalStatus = changes.getStatus() != null ? changes.getStatus() : existing.getStatus();
         String finalModelo = changes.getModelo() != null ? changes.getModelo() : existing.getModelo();
@@ -88,7 +111,9 @@ public class PrinterService {
         }
 
         Printer savedPrinter = repository.save(existing);
-        return connectivityService.verificarImpressora(savedPrinter);
+        Printer verifiedPrinter = connectivityService.verificarImpressora(savedPrinter);
+        auditLoggerService.logUpdate(username, existingCopy, changes);
+        return verifiedPrinter;
     }
 
     private static final String IP_REGEX = "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
@@ -110,7 +135,6 @@ public class PrinterService {
     }
 
     private void validateUniqueCodigoStatus(String codigo, Printer.Status status, String modelo, String currentId) {
-        // BACKUP status allows only one BACKUP per codigo, regardless of modelo
         if (status == Printer.Status.BACKUP) {
             Optional<Printer> backupWithCodigo = repository.findByCodigoAndStatus(codigo, Printer.Status.BACKUP);
             if (backupWithCodigo.isPresent() && (currentId == null || !backupWithCodigo.get().getId().equals(currentId))) {
@@ -119,7 +143,6 @@ public class PrinterService {
             return;
         }
 
-        // For non-BACKUP statuses, allow the same codigo and status only when the modelo differs.
         List<Printer> sameCodeSameStatus = repository.findByCodigo(codigo).stream()
                 .filter(p -> p.getStatus() == status)
                 .toList();
@@ -134,9 +157,12 @@ public class PrinterService {
     }
 
     public void delete(String id) {
-        if (!repository.existsById(id)) {
-            throw new NoSuchElementException("Impressora não encontrada: " + id);
-        }
-        repository.deleteById(id);
+        delete(id, null);
+    }
+
+    public void delete(String id, String username) {
+        Printer existing = findById(id);
+        repository.delete(existing);
+        auditLoggerService.logDelete(username, existing);
     }
 }
